@@ -647,7 +647,7 @@
         }
 
         try {
-          const rep = await apiProtegee("/admin/employes", {
+          const rep = await apiProtegee("/utilisateurs/employe", {
             method: "POST",
             body: JSON.stringify({ pseudo, email, password }),
           });

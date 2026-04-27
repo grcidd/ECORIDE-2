@@ -3,7 +3,7 @@
 // Ce fichier est inclus sur toutes les pages
 // ============================================
 
-const API = "http://localhost:3000/api";
+const API = "https://ecoride-2-5vty.onrender.com";
 
 // ---- Sauvegarde de la session après connexion ----
 function sauvegarderSession(token, user) {

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Le covoiturage écolo, simple et intelligent</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      /* ---- Styles spécifiques à l'accueil ---- */
+
+      /* Hero */
+      .hero {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        gap: 60px;
+        padding: 120px 48px 80px;
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .hero-texte {
+        max-width: 560px;
+      }
+
+      .hero-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--vert-pale);
+        color: var(--vert-principal);
+        padding: 6px 14px;
+        border-radius: 100px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 24px;
+      }
+
+      .hero h1 {
+        margin-bottom: 20px;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--vert-principal);
+      }
+
+      .hero p {
+        font-size: 1.1rem;
+        line-height: 1.7;
+        margin-bottom: 36px;
+        color: var(--gris-texte);
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      /* Carte de recherche flottante sur le hero */
+      .hero-card {
+        background: white;
+        border-radius: var(--radius);
+        padding: 36px;
+        box-shadow: var(--ombre-forte);
+        border: 1px solid var(--gris-bordure);
+        position: relative;
+      }
+
+      .hero-card::before {
+        content: "";
+        position: absolute;
+        top: -20px;
+        right: -20px;
+        width: 120px;
+        height: 120px;
+        background: var(--vert-pale);
+        border-radius: 50%;
+        z-index: -1;
+      }
+
+      .hero-card h3 {
+        font-family: var(--font-titre);
+        font-size: 1.3rem;
+        margin-bottom: 24px;
+        color: var(--noir-doux);
+      }
+
+      .hero-card .champ-groupe {
+        margin-bottom: 12px;
+      }
+
+      /* Stats */
+      .stats-bande {
+        background: var(--vert-fonce);
+        padding: 40px 48px;
+        display: flex;
+        justify-content: center;
+        gap: 80px;
+        flex-wrap: wrap;
+      }
+
+      .stat-item {
+        text-align: center;
+        color: white;
+      }
+      .stat-nombre {
+        font-family: var(--font-titre);
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: var(--vert-clair);
+        display: block;
+      }
+      .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.75;
+      }
+
+      /* Section Pourquoi EcoRide */
+      .section {
+        padding: 80px 48px;
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+      .section-titre {
+        text-align: center;
+        margin-bottom: 56px;
+      }
+      .section-titre p {
+        margin-top: 12px;
+        font-size: 1.05rem;
+      }
+
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+      }
+
+      .feature-card {
+        background: var(--gris-fond);
+        border-radius: var(--radius);
+        padding: 36px 28px;
+        transition: var(--transition);
+        border: 1px solid transparent;
+      }
+
+      .feature-card:hover {
+        background: white;
+        border-color: var(--vert-clair);
+        box-shadow: var(--ombre);
+        transform: translateY(-4px);
+      }
+
+      .feature-icone {
+        width: 52px;
+        height: 52px;
+        background: var(--vert-pale);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+      }
+
+      .feature-card h3 {
+        margin-bottom: 10px;
+      }
+
+      /* Section image + texte */
+      .section-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: center;
+        padding: 80px 48px;
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .section-split img {
+        border-radius: var(--radius);
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+      }
+
+      .section-split-texte h2 {
+        margin-bottom: 20px;
+      }
+      .section-split-texte p {
+        margin-bottom: 28px;
+        line-height: 1.8;
+      }
+
+      /* CTA final */
+      .cta-final {
+        background: linear-gradient(
+          135deg,
+          var(--vert-principal),
+          var(--vert-fonce)
+        );
+        border-radius: var(--radius);
+        padding: 64px 48px;
+        text-align: center;
+        color: white;
+        margin: 0 48px 80px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta-final::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 220px;
+        height: 220px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 50%;
+      }
+
+      .cta-final h2 {
+        color: white;
+        margin-bottom: 16px;
+      }
+
+      .cta-final p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.05rem;
+        margin-bottom: 32px;
+      }
+
+      /* Message aucun résultat */
+      #message-prochain {
+        display: none;
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+          padding: 100px 20px 60px;
+          text-align: center;
+        }
+        .hero-texte {
+          max-width: 100%;
+        }
+        .hero-actions {
+          justify-content: center;
+        }
+        .hero-card {
+          display: none;
+        } /* on cache la carte desktop sur mobile */
+        .cards-grid {
+          grid-template-columns: 1fr;
+        }
+        .section-split {
+          grid-template-columns: 1fr;
+          padding: 48px 20px;
+        }
+        .stats-bande {
+          gap: 40px;
+          padding: 32px 20px;
+        }
+        .section {
+          padding: 48px 20px;
+        }
+        .cta-final {
+          margin: 0 20px 60px;
+          padding: 48px 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================== NAVIGATION ===================== -->
+    <nav class="navbar" id="navbar">
+      <a href="index.html" class="logo"> <span></span> EcoRide </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="covoiturages.html">Covoiturages</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <!-- Ces boutons changent selon si l'utilisateur est connecté -->
+        <div id="nav-invite">
+          <a href="connexion.html" class="btn btn-contour">Connexion</a>
+        </div>
+        <div id="nav-connecte" class="hidden">
+          <a href="profil.html" class="btn btn-vert" id="nav-pseudo"
+            >Mon espace</a
+          >
+        </div>
+      </div>
+
+      <!-- Burger menu mobile -->
+      <div class="burger" id="burger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </nav>
+
+    <!-- ===================== HERO ===================== -->
+    <section>
+      <div class="hero">
+        <!-- Texte gauche -->
+        <div class="hero-texte">
+          <div class="hero-tag fade-up">🌿 Covoiturage écologique</div>
+          <h1 class="fade-up-2">
+            La plateforme pensée pour<br />
+            <em>l'écologie</em> et votre porte-monnaie.
+          </h1>
+          <p class="fade-up-3">
+            Partagez vos trajets, réduisez votre empreinte carbone et économisez
+            en roulant autrement. EcoRide connecte conducteurs et passagers
+            partout en France.
+          </p>
+          <div class="hero-actions fade-up-4">
+            <a href="covoiturages.html" class="btn btn-vert"
+              >Trouver un trajet</a
+            >
+            <a href="connexion.html" class="btn btn-contour"
+              >Proposer un trajet</a
+            >
+          </div>
+        </div>
+
+        <!-- Formulaire de recherche (version desktop dans le hero) -->
+        <div class="hero-card fade-up-3">
+          <h3>🔍 Trouver un covoiturage</h3>
+          <div class="champ-groupe">
+            <label for="depart-hero">Ville de départ</label>
+            <input type="text" id="depart-hero" placeholder="Ex : Lyon" />
+          </div>
+          <div class="champ-groupe">
+            <label for="arrivee-hero">Ville d'arrivée</label>
+            <input type="text" id="arrivee-hero" placeholder="Ex : Paris" />
+          </div>
+          <div class="champ-groupe">
+            <label for="date-hero">Date du voyage</label>
+            <input type="date" id="date-hero" />
+          </div>
+          <button
+            class="btn btn-vert"
+            style="width: 100%; margin-top: 8px; justify-content: center"
+            onclick="rechercherDepuisHero()"
+          >
+            Rechercher
+          </button>
+          <div id="message-prochain" class="alerte alerte-info mt-16"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== BANDE STATS ===================== -->
+    <div class="stats-bande">
+      <div class="stat-item">
+        <span class="stat-nombre">2 400+</span>
+        <span class="stat-label">Trajets proposés</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-nombre">8 700+</span>
+        <span class="stat-label">Utilisateurs actifs</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-nombre">12T</span>
+        <span class="stat-label">CO₂ économisé</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-nombre">4,8★</span>
+        <span class="stat-label">Note moyenne</span>
+      </div>
+    </div>
+
+    <!-- ===================== POURQUOI ECORIDE ===================== -->
+    <section class="section">
+      <div class="section-titre">
+        <h2>Pourquoi choisir EcoRide ?</h2>
+        <p>
+          Une plateforme simple, sécurisée et vraiment engagée pour
+          l'environnement.
+        </p>
+      </div>
+
+      <div class="cards-grid">
+        <div class="feature-card">
+          <div class="feature-icone">🌱</div>
+          <h3>Voyages écologiques</h3>
+          <p>
+            Les trajets en voiture électrique sont identifiés comme écologiques.
+            Choisissez un conducteur qui respecte la planète.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icone">💰</div>
+          <h3>Économisez vraiment</h3>
+          <p>
+            Partagez les frais de transport avec d'autres voyageurs. Moins cher
+            que le train, plus flexible que le bus.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icone">🛡️</div>
+          <h3>Communauté vérifiée</h3>
+          <p>
+            Chaque conducteur est noté par les passagers. Les avis sont validés
+            par notre équipe avant publication.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SECTION SPLIT ===================== -->
+    <section class="section-split">
+      <img
+        src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&auto=format&fit=crop"
+        alt="Covoiturage en voiture"
+      />
+      <div class="section-split-texte">
+        <h2>Moins de CO₂, plus d'économies.</h2>
+        <p>
+          En choisissant le covoiturage plutôt que la voiture solo, vous
+          réduisez votre empreinte carbone tout en divisant vos frais de
+          transport par deux, trois, voire quatre.
+        </p>
+        <p>
+          EcoRide met en avant les conducteurs qui utilisent des véhicules
+          électriques, pour un trajet encore plus responsable.
+        </p>
+        <a href="connexion.html" class="btn btn-vert">Rejoindre EcoRide</a>
+      </div>
+    </section>
+
+    <!-- ===================== CTA FINAL ===================== -->
+    <div class="cta-final">
+      <h2>Prêt à rouler autrement ?</h2>
+      <p>
+        Inscris-toi gratuitement et reçois 20 crédits pour ton premier trajet.
+      </p>
+      <a href="connexion.html" class="btn btn-blanc">Créer mon compte</a>
+    </div>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer id="contact">
+      <div>
+        <div class="footer-logo">🌿 EcoRide</div>
+        <p style="margin-top: 8px; font-size: 0.85rem">
+          Le covoiturage écolo, simple et intelligent.
+        </p>
+      </div>
+      <div>
+        <p>📧 <a href="mailto:contact@ecoride.fr">contact@ecoride.fr</a></p>
+      </div>
+      <div>
+        <a href="mentions-legales.html">Mentions légales</a>
+      </div>
+    </footer>
+
+    <!-- ===================== JAVASCRIPT ===================== -->
+    <script src="js/auth.js"></script>
+    <script>
+      // ---- Navbar : effet au scroll ----
+      window.addEventListener("scroll", () => {
+        const navbar = document.getElementById("navbar");
+        if (window.scrollY > 40) {
+          navbar.classList.add("scrolled");
+        } else {
+          navbar.classList.remove("scrolled");
+        }
+      });
+
+      // ---- Menu burger mobile ----
+      function toggleMenu() {
+        document.getElementById("navLinks").classList.toggle("open");
+      }
+
+      // ---- Date minimum = aujourd'hui ----
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("date-hero").min = today;
+      document.getElementById("date-hero").value = today;
+
+      // ---- Recherche depuis le hero → redirige vers covoiturages.html ----
+      function rechercherDepuisHero() {
+        const depart = document.getElementById("depart-hero").value.trim();
+        const arrivee = document.getElementById("arrivee-hero").value.trim();
+        const date = document.getElementById("date-hero").value;
+
+        if (!depart || !arrivee || !date) {
+          const msg = document.getElementById("message-prochain");
+          msg.style.display = "block";
+          msg.textContent = "Merci de remplir tous les champs.";
+          return;
+        }
+
+        // On redirige vers la page covoiturages avec les paramètres dans l'URL
+        window.location.href = `covoiturages.html?depart=${encodeURIComponent(
+          depart
+        )}&arrivee=${encodeURIComponent(arrivee)}&date=${date}`;
+      }
+
+      // ---- Appui sur Entrée dans les champs ----
+      ["depart-hero", "arrivee-hero", "date-hero"].forEach((id) => {
+        document.getElementById(id).addEventListener("keydown", (e) => {
+          if (e.key === "Enter") rechercherDepuisHero();
+        });
+      });
+    </script>
+  </body>
+</html>

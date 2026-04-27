@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Mon espace</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .page-profil {
+        padding-top: 80px;
+        min-height: 100vh;
+        background: var(--gris-fond);
+      }
+
+      .profil-layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 28px;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: sticky;
+        top: 100px;
+        align-self: start;
+      }
+
+      .sidebar-carte {
+        background: white;
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--ombre);
+        text-align: center;
+      }
+
+      .profil-avatar {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: var(--vert-pale);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--vert-principal);
+        margin: 0 auto 16px;
+      }
+
+      .profil-pseudo {
+        font-family: var(--font-titre);
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .profil-role {
+        font-size: 0.85rem;
+        color: var(--gris-texte);
+        margin-bottom: 12px;
+      }
+
+      .profil-credits {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--vert-pale);
+        color: var(--vert-fonce);
+        padding: 8px 14px;
+        border-radius: 100px;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .sidebar-menu {
+        background: white;
+        border-radius: var(--radius);
+        box-shadow: var(--ombre);
+        overflow: hidden;
+      }
+
+      .sidebar-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--gris-bordure);
+        text-decoration: none;
+        font-family: var(--font-corps);
+        font-size: 0.94rem;
+        color: var(--gris-texte);
+        transition: var(--transition);
+      }
+
+      .sidebar-btn:last-child {
+        border-bottom: none;
+      }
+
+      .sidebar-btn:hover {
+        background: var(--gris-fond);
+        color: var(--vert-principal);
+      }
+
+      .sidebar-btn.actif {
+        background: var(--vert-pale);
+        color: var(--vert-fonce);
+        font-weight: 700;
+      }
+
+      .contenu-main {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .section-profil {
+        scroll-margin-top: 100px;
+      }
+
+      .contenu-titre {
+        font-family: var(--font-titre);
+        font-size: 1.7rem;
+        margin-bottom: 18px;
+      }
+
+      .carte-blanche {
+        background: white;
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--ombre);
+        border: 1px solid var(--gris-bordure);
+      }
+
+      .carte-blanche h3 {
+        font-size: 1rem;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--gris-bordure);
+      }
+
+      .dashboard-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .mini-carte {
+        background: white;
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--ombre);
+        border: 1px solid var(--gris-bordure);
+        text-align: center;
+      }
+
+      .mini-carte-icone {
+        font-size: 2rem;
+        margin-bottom: 8px;
+      }
+
+      .mini-carte-valeur {
+        font-family: var(--font-titre);
+        font-size: 1.8rem;
+        color: var(--vert-principal);
+        margin-bottom: 6px;
+      }
+
+      .mini-carte-label {
+        font-size: 0.84rem;
+        color: var(--gris-texte);
+      }
+
+      .actions-rapides {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .champ-groupe {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+
+      .champ-groupe label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--gris-texte);
+      }
+
+      .champ-groupe input,
+      .champ-groupe select,
+      .champ-groupe textarea {
+        padding: 12px 14px;
+        border: 1.5px solid var(--gris-bordure);
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.92rem;
+        outline: none;
+        transition: var(--transition);
+        color: var(--noir-doux);
+        background: white;
+      }
+
+      .champ-groupe input:focus,
+      .champ-groupe select:focus,
+      .champ-groupe textarea:focus {
+        border-color: var(--vert-principal);
+        box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
+      }
+
+      .role-toggle {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      .role-btn {
+        flex: 1;
+        min-width: 140px;
+        padding: 20px;
+        border: 2px solid var(--gris-bordure);
+        border-radius: var(--radius);
+        background: white;
+        cursor: pointer;
+        transition: var(--transition);
+        text-align: center;
+      }
+
+      .role-btn:hover {
+        border-color: var(--vert-clair);
+      }
+
+      .role-btn.selectionne {
+        border-color: var(--vert-principal);
+        background: var(--vert-pale);
+      }
+
+      .role-icone {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .role-nom {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--noir-doux);
+      }
+
+      .role-desc {
+        font-size: 0.78rem;
+        color: var(--gris-texte);
+        margin-top: 4px;
+      }
+
+      .trajet-historique {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--gris-bordure);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .trajet-historique:last-child {
+        border-bottom: none;
+      }
+
+      .statut-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .statut-planifie {
+        background: #eef2ff;
+        color: #3730a3;
+      }
+
+      .statut-en_cours {
+        background: #fff4e5;
+        color: #b56b00;
+      }
+
+      .statut-termine {
+        background: var(--vert-pale);
+        color: var(--vert-fonce);
+      }
+
+      .statut-annule {
+        background: #ffe5e7;
+        color: var(--erreur);
+      }
+
+      .alerte-zone {
+        margin-bottom: 16px;
+      }
+
+      .alerte {
+        padding: 12px 14px;
+        border-radius: var(--radius-petit);
+        font-size: 0.9rem;
+      }
+
+      .alerte-succes {
+        background: #e8f7ee;
+        color: #166534;
+      }
+
+      .alerte-erreur {
+        background: #ffe5e7;
+        color: #b42318;
+      }
+
+      .zone-vide {
+        color: var(--gris-texte);
+        font-size: 0.92rem;
+      }
+
+      .liste-simple-item {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--gris-bordure);
+        font-size: 0.92rem;
+      }
+
+      .liste-simple-item:last-child {
+        border-bottom: none;
+      }
+
+      @media (max-width: 980px) {
+        .profil-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+        }
+
+        .dashboard-cards {
+          grid-template-columns: 1fr;
+        }
+
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar" id="navbar">
+      <a href="index.html" class="logo"><span></span> EcoRide</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="covoiturages.html">Covoiturages</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div id="nav-connecte">
+          <a href="profil.html" class="btn btn-vert" id="nav-pseudo"
+            >Mon espace</a
+          >
+        </div>
+      </div>
+      <div class="burger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </nav>
+
+    <div class="page-profil">
+      <div class="profil-layout">
+        <aside class="sidebar">
+          <div class="sidebar-carte">
+            <div class="profil-avatar" id="sidebar-avatar">?</div>
+            <div class="profil-pseudo" id="sidebar-pseudo">Chargement...</div>
+            <div class="profil-role" id="sidebar-role"></div>
+            <div class="profil-credits" id="sidebar-credits">💳 — crédits</div>
+          </div>
+
+          <div class="sidebar-menu">
+            <a class="sidebar-btn actif" href="#tableau-bord"
+              ><span>🏠</span> Tableau de bord</a
+            >
+            <a class="sidebar-btn" href="#mon-profil"
+              ><span>👤</span> Mon profil</a
+            >
+            <a class="sidebar-btn" href="#mes-trajets"
+              ><span>🚗</span> Mes trajets</a
+            >
+            <a class="sidebar-btn" href="#proposer-trajet"
+              ><span>➕</span> Proposer un trajet</a
+            >
+            <a class="sidebar-btn" href="#mon-vehicule"
+              ><span>🚙</span> Mon véhicule</a
+            >
+            <a
+              class="sidebar-btn"
+              href="#"
+              id="btn-deconnexion"
+              style="color: var(--erreur)"
+            >
+              <span>🚪</span> Déconnexion
+            </a>
+          </div>
+        </aside>
+
+        <main class="contenu-main">
+          <section id="tableau-bord" class="section-profil">
+            <h2 class="contenu-titre">
+              Bonjour <span id="prenom-bienvenue"></span> 👋
+            </h2>
+
+            <div class="dashboard-cards">
+              <div class="mini-carte">
+                <div class="mini-carte-icone">💳</div>
+                <div class="mini-carte-valeur" id="db-credits">—</div>
+                <div class="mini-carte-label">Crédits disponibles</div>
+              </div>
+
+              <div class="mini-carte">
+                <div class="mini-carte-icone">🚗</div>
+                <div class="mini-carte-valeur" id="db-trajets">—</div>
+                <div class="mini-carte-label">Trajets effectués</div>
+              </div>
+
+              <div class="mini-carte">
+                <div class="mini-carte-icone">🌱</div>
+                <div class="mini-carte-valeur" id="db-eco">—</div>
+                <div class="mini-carte-label">Trajets écologiques</div>
+              </div>
+            </div>
+
+            <div class="carte-blanche">
+              <h3>Accès rapide</h3>
+              <div class="actions-rapides">
+                <a class="btn btn-vert" href="#proposer-trajet"
+                  >➕ Proposer un trajet</a
+                >
+                <a href="covoiturages.html" class="btn btn-contour"
+                  >🔍 Chercher un trajet</a
+                >
+                <a class="btn btn-contour" href="#mes-trajets"
+                  >📋 Mes trajets</a
+                >
+              </div>
+            </div>
+          </section>
+
+          <section id="mon-profil" class="section-profil">
+            <h2 class="contenu-titre">Mon profil</h2>
+
+            <div class="carte-blanche">
+              <h3>Mon rôle sur EcoRide</h3>
+
+              <div class="role-toggle">
+                <div class="role-btn" id="role-passager">
+                  <span class="role-icone">🎒</span>
+                  <div class="role-nom">Passager</div>
+                  <div class="role-desc">Je cherche des trajets</div>
+                </div>
+
+                <div class="role-btn" id="role-chauffeur">
+                  <span class="role-icone">🚗</span>
+                  <div class="role-nom">Chauffeur</div>
+                  <div class="role-desc">Je propose des trajets</div>
+                </div>
+
+                <div class="role-btn" id="role-les-deux">
+                  <span class="role-icone">🔄</span>
+                  <div class="role-nom">Les deux</div>
+                  <div class="role-desc">Je conduis et voyage</div>
+                </div>
+              </div>
+
+              <button class="btn btn-vert" id="btn-save-role">
+                Sauvegarder mon rôle
+              </button>
+              <div id="msg-role" class="alerte-zone"></div>
+            </div>
+
+            <div class="carte-blanche" id="section-prefs-chauffeur">
+              <h3>Mes préférences chauffeur</h3>
+
+              <div class="champ-groupe">
+                <label>
+                  <input
+                    type="checkbox"
+                    id="pref-fumeur"
+                    style="margin-right: 6px"
+                  />
+                  J'accepte les fumeurs
+                </label>
+              </div>
+
+              <div class="champ-groupe">
+                <label>
+                  <input
+                    type="checkbox"
+                    id="pref-animaux"
+                    style="margin-right: 6px"
+                  />
+                  J'accepte les animaux
+                </label>
+              </div>
+
+              <div class="champ-groupe">
+                <label for="pref-perso">Préférences personnalisées</label>
+                <textarea
+                  id="pref-perso"
+                  rows="3"
+                  placeholder="Ex : musique calme, ponctualité appréciée..."
+                ></textarea>
+              </div>
+
+              <button class="btn btn-vert" id="btn-save-prefs">
+                Sauvegarder les préférences
+              </button>
+              <div id="msg-prefs" class="alerte-zone"></div>
+            </div>
+          </section>
+
+          <section id="mes-trajets" class="section-profil">
+            <h2 class="contenu-titre">Mes trajets</h2>
+
+            <div class="carte-blanche">
+              <h3>🚗 En tant que chauffeur</h3>
+              <div id="liste-chauffeur" class="zone-vide">Chargement...</div>
+            </div>
+
+            <div class="carte-blanche">
+              <h3>🎒 En tant que passager</h3>
+              <div id="liste-passager" class="zone-vide">Chargement...</div>
+            </div>
+          </section>
+
+          <section id="proposer-trajet" class="section-profil">
+            <h2 class="contenu-titre">Proposer un trajet</h2>
+
+            <div class="carte-blanche">
+              <div id="msg-trajet" class="alerte-zone"></div>
+
+              <div class="form-grid">
+                <div class="champ-groupe">
+                  <label for="t-depart">Ville de départ</label>
+                  <input type="text" id="t-depart" placeholder="Lyon" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-arrivee">Ville d'arrivée</label>
+                  <input type="text" id="t-arrivee" placeholder="Paris" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-adr-depart">Adresse de départ</label>
+                  <input
+                    type="text"
+                    id="t-adr-depart"
+                    placeholder="Place Bellecour, Lyon"
+                  />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-adr-arrivee">Adresse d'arrivée</label>
+                  <input
+                    type="text"
+                    id="t-adr-arrivee"
+                    placeholder="Gare de Lyon, Paris"
+                  />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-date-depart">Date de départ</label>
+                  <input type="date" id="t-date-depart" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-heure-depart">Heure de départ</label>
+                  <input type="time" id="t-heure-depart" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-date-arrivee">Date d'arrivée</label>
+                  <input type="date" id="t-date-arrivee" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-heure-arrivee">Heure d'arrivée</label>
+                  <input type="time" id="t-heure-arrivee" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-prix">Prix par personne (crédits)</label>
+                  <input
+                    type="number"
+                    id="t-prix"
+                    min="3"
+                    placeholder="Ex : 25"
+                  />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-places">Nombre de places</label>
+                  <input
+                    type="number"
+                    id="t-places"
+                    min="1"
+                    max="8"
+                    placeholder="Ex : 3"
+                  />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-duree">Durée estimée (minutes)</label>
+                  <input type="number" id="t-duree" placeholder="Ex : 240" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="t-vehicule">Véhicule</label>
+                  <select id="t-vehicule">
+                    <option value="">Sélectionner un véhicule</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="btn btn-vert" id="btn-publier-trajet">
+                Publier le trajet
+              </button>
+            </div>
+          </section>
+
+          <section id="mon-vehicule" class="section-profil">
+            <h2 class="contenu-titre">Mon véhicule</h2>
+
+            <div class="carte-blanche">
+              <h3>Ajouter un véhicule</h3>
+              <div id="msg-vehicule" class="alerte-zone"></div>
+
+              <div class="form-grid">
+                <div class="champ-groupe">
+                  <label for="v-marque">Marque</label>
+                  <input type="text" id="v-marque" placeholder="Tesla" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-modele">Modèle</label>
+                  <input type="text" id="v-modele" placeholder="Model 3" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-couleur">Couleur</label>
+                  <input type="text" id="v-couleur" placeholder="Blanc" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-immat">Immatriculation</label>
+                  <input type="text" id="v-immat" placeholder="AB-123-CD" />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-energie">Énergie</label>
+                  <select id="v-energie">
+                    <option value="">Choisir une énergie</option>
+                    <option value="electrique">Électrique</option>
+                    <option value="hybride">Hybride</option>
+                    <option value="essence">Essence</option>
+                    <option value="diesel">Diesel</option>
+                  </select>
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-places">Nombre de places</label>
+                  <input
+                    type="number"
+                    id="v-places"
+                    min="1"
+                    max="9"
+                    placeholder="4"
+                  />
+                </div>
+
+                <div class="champ-groupe">
+                  <label for="v-date-immat">Date 1ère immatriculation</label>
+                  <input type="date" id="v-date-immat" />
+                </div>
+              </div>
+
+              <button class="btn btn-vert" id="btn-add-vehicule">
+                Enregistrer le véhicule
+              </button>
+            </div>
+
+            <div class="carte-blanche">
+              <h3>Mes véhicules enregistrés</h3>
+              <div id="liste-vehicules" class="zone-vide">Chargement...</div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+      if (!estConnecte()) {
+        window.location.href = "connexion.html";
+      }
+
+      const user = getUser();
+      let roleSelectionne = "passager";
+
+      function toggleMenu() {
+        document.getElementById("navLinks").classList.toggle("open");
+      }
+
+      function formatDate(d) {
+        if (!d) return "—";
+        return new Date(d).toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+
+      function afficherAlerte(id, type, message) {
+        document.getElementById(id).innerHTML = `
+          <div class="alerte alerte-${type}">${message}</div>
+        `;
+      }
+
+      function trajetHistoriqueHTML(t, type, participation) {
+        if (!t) return "";
+        const statutClass = `statut-${t.statut || "planifie"}`;
+        const statutLabel = {
+          planifie: "Planifié",
+          en_cours: "En cours",
+          termine: "Terminé",
+          annule: "Annulé",
+        };
+
+        const actionsHTML =
+          type === "chauffeur" && t.statut === "planifie"
+            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="demarrerTrajet(${t.covoiturage_id})">▶ Démarrer</button>`
+            : type === "chauffeur" && t.statut === "en_cours"
+            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="terminerTrajet(${t.covoiturage_id})">🏁 Terminer</button>`
+            : "";
+
+        return `
+          <div class="trajet-historique">
+            <div>
+              <strong>${t.ville_depart || "—"} → ${
+          t.ville_arrivee || "—"
+        }</strong>
+              <div style="font-size:0.82rem; color:var(--gris-texte); margin-top:2px">
+                ${formatDate(t.date_depart)} · ${
+          t.prix_par_personne || 0
+        } crédits/pers
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px">
+              <span class="statut-badge ${statutClass}">
+                ${statutLabel[t.statut] || t.statut}
+              </span>
+              ${actionsHTML}
+            </div>
+          </div>
+        `;
+      }
+
+      function marquerRoleActuel() {
+        document.querySelectorAll(".role-btn").forEach((b) => {
+          b.classList.remove("selectionne");
+        });
+
+        if (user.est_chauffeur && user.est_passager) {
+          roleSelectionne = "les-deux";
+          document.getElementById("role-les-deux").classList.add("selectionne");
+        } else if (user.est_chauffeur) {
+          roleSelectionne = "chauffeur";
+          document
+            .getElementById("role-chauffeur")
+            .classList.add("selectionne");
+        } else {
+          roleSelectionne = "passager";
+          document.getElementById("role-passager").classList.add("selectionne");
+        }
+      }
+
+      function brancherSelectionRole() {
+        document
+          .getElementById("role-passager")
+          .addEventListener("click", () => {
+            roleSelectionne = "passager";
+            marquerRoleVisuel();
+          });
+
+        document
+          .getElementById("role-chauffeur")
+          .addEventListener("click", () => {
+            roleSelectionne = "chauffeur";
+            marquerRoleVisuel();
+          });
+
+        document
+          .getElementById("role-les-deux")
+          .addEventListener("click", () => {
+            roleSelectionne = "les-deux";
+            marquerRoleVisuel();
+          });
+      }
+
+      function marquerRoleVisuel() {
+        document.querySelectorAll(".role-btn").forEach((b) => {
+          b.classList.remove("selectionne");
+        });
+        document
+          .getElementById(`role-${roleSelectionne}`)
+          .classList.add("selectionne");
+      }
+
+      async function sauvegarderRole() {
+        const est_chauffeur =
+          roleSelectionne === "chauffeur" || roleSelectionne === "les-deux";
+        const est_passager =
+          roleSelectionne === "passager" || roleSelectionne === "les-deux";
+
+        try {
+          const rep = await apiProtegee("/utilisateurs/role", {
+            method: "PATCH",
+            body: JSON.stringify({ est_chauffeur, est_passager }),
+          });
+
+          const data = await rep.json();
+          afficherAlerte(
+            "msg-role",
+            rep.ok ? "succes" : "erreur",
+            data.message
+          );
+
+          if (rep.ok) {
+            user.est_chauffeur = est_chauffeur;
+            user.est_passager = est_passager;
+          }
+        } catch {
+          afficherAlerte("msg-role", "erreur", "Erreur serveur.");
+        }
+      }
+
+      async function sauvegarderPrefs() {
+        const body = {
+          accepte_fumeur: document.getElementById("pref-fumeur").checked,
+          accepte_animaux: document.getElementById("pref-animaux").checked,
+          preference_perso: document.getElementById("pref-perso").value,
+        };
+
+        try {
+          const rep = await apiProtegee("/utilisateurs/preferences", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+
+          const data = await rep.json();
+          afficherAlerte(
+            "msg-prefs",
+            rep.ok ? "succes" : "erreur",
+            data.message
+          );
+        } catch {
+          afficherAlerte("msg-prefs", "erreur", "Erreur serveur.");
+        }
+      }
+
+      async function chargerHistorique() {
+        try {
+          const rep = await apiProtegee("/covoiturages/historique");
+          const data = await rep.json();
+
+          const listeCh = document.getElementById("liste-chauffeur");
+          const listePa = document.getElementById("liste-passager");
+
+          if (!data.chauffeur || data.chauffeur.length === 0) {
+            listeCh.innerHTML = `<p class="zone-vide">Aucun trajet proposé.</p>`;
+            document.getElementById("db-trajets").textContent = "0";
+          } else {
+            document.getElementById("db-trajets").textContent =
+              data.chauffeur.length;
+            listeCh.innerHTML = data.chauffeur
+              .map((t) => trajetHistoriqueHTML(t, "chauffeur"))
+              .join("");
+          }
+
+          if (!data.passager || data.passager.length === 0) {
+            listePa.innerHTML = `<p class="zone-vide">Aucune réservation.</p>`;
+          } else {
+            listePa.innerHTML = data.passager
+              .map((p) => trajetHistoriqueHTML(p.covoiturage, "passager", p))
+              .join("");
+          }
+
+          const nbEco = (data.chauffeur || []).filter(
+            (t) => t.est_ecologique
+          ).length;
+          document.getElementById("db-eco").textContent = nbEco;
+        } catch {
+          document.getElementById(
+            "liste-chauffeur"
+          ).innerHTML = `<p class="zone-vide">Erreur de chargement.</p>`;
+          document.getElementById(
+            "liste-passager"
+          ).innerHTML = `<p class="zone-vide">Erreur de chargement.</p>`;
+        }
+      }
+
+      async function demarrerTrajet(id) {
+        const rep = await apiProtegee(`/covoiturages/${id}/demarrer`, {
+          method: "PATCH",
+        });
+        const data = await rep.json();
+        alert(data.message);
+        chargerHistorique();
+      }
+
+      async function terminerTrajet(id) {
+        const rep = await apiProtegee(`/covoiturages/${id}/terminer`, {
+          method: "PATCH",
+        });
+        const data = await rep.json();
+        alert(data.message);
+        chargerHistorique();
+      }
+
+      async function chargerVehicules() {
+        try {
+          const rep = await apiProtegee("/utilisateurs/vehicules");
+          const data = await rep.json();
+
+          const select = document.getElementById("t-vehicule");
+          const liste = document.getElementById("liste-vehicules");
+
+          select.innerHTML = `<option value="">Sélectionner un véhicule</option>`;
+
+          if (!data.vehicules || data.vehicules.length === 0) {
+            liste.innerHTML = `<p class="zone-vide">Aucun véhicule enregistré.</p>`;
+            return;
+          }
+
+          data.vehicules.forEach((v) => {
+            const opt = document.createElement("option");
+            opt.value = v.vehicule_id;
+            opt.textContent = `${v.marque} ${v.modele} (${v.energie})`;
+            select.appendChild(opt);
+          });
+
+          liste.innerHTML = data.vehicules
+            .map(
+              (v) => `
+                <div class="liste-simple-item">
+                  🚗 <strong>${v.marque} ${v.modele}</strong> · ${v.energie} · ${v.immatriculation}
+                </div>
+              `
+            )
+            .join("");
+        } catch {
+          document.getElementById(
+            "liste-vehicules"
+          ).innerHTML = `<p class="zone-vide">Erreur de chargement.</p>`;
+        }
+      }
+
+      async function ajouterVehicule() {
+        const marque = document.getElementById("v-marque").value.trim();
+        const modele = document.getElementById("v-modele").value.trim();
+        const couleur = document.getElementById("v-couleur").value.trim();
+        const immatriculation = document.getElementById("v-immat").value.trim();
+        const energie = document.getElementById("v-energie").value;
+        const nbPlacesValue = document.getElementById("v-places").value;
+        const dateImmat = document.getElementById("v-date-immat").value;
+
+        if (
+          !marque ||
+          !modele ||
+          !immatriculation ||
+          !energie ||
+          !nbPlacesValue
+        ) {
+          afficherAlerte(
+            "msg-vehicule",
+            "erreur",
+            "Tous les champs obligatoires doivent être remplis."
+          );
+          return;
+        }
+
+        const nb_places = parseInt(nbPlacesValue, 10);
+
+        if (isNaN(nb_places) || nb_places < 1) {
+          afficherAlerte(
+            "msg-vehicule",
+            "erreur",
+            "Le nombre de places est invalide."
+          );
+          return;
+        }
+
+        const body = {
+          marque,
+          modele,
+          couleur,
+          immatriculation,
+          energie,
+          nb_places,
+          date_premiere_immatriculation: dateImmat || null,
+        };
+
+        try {
+          const rep = await apiProtegee("/utilisateurs/vehicules", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+
+          const data = await rep.json();
+          afficherAlerte(
+            "msg-vehicule",
+            rep.ok ? "succes" : "erreur",
+            data.message || "Erreur."
+          );
+
+          if (rep.ok) {
+            document.getElementById("v-marque").value = "";
+            document.getElementById("v-modele").value = "";
+            document.getElementById("v-couleur").value = "";
+            document.getElementById("v-immat").value = "";
+            document.getElementById("v-energie").value = "";
+            document.getElementById("v-places").value = "";
+            document.getElementById("v-date-immat").value = "";
+            chargerVehicules();
+          }
+        } catch {
+          afficherAlerte("msg-vehicule", "erreur", "Erreur serveur.");
+        }
+      }
+
+      async function proposerTrajet() {
+        const vehiculeValue = document.getElementById("t-vehicule").value;
+        const ville_depart = document.getElementById("t-depart").value.trim();
+        const ville_arrivee = document.getElementById("t-arrivee").value.trim();
+        const adresse_depart = document
+          .getElementById("t-adr-depart")
+          .value.trim();
+        const adresse_arrivee = document
+          .getElementById("t-adr-arrivee")
+          .value.trim();
+        const date_depart = document.getElementById("t-date-depart").value;
+        const heure_depart = document.getElementById("t-heure-depart").value;
+        const date_arrivee = document.getElementById("t-date-arrivee").value;
+        const heure_arrivee = document.getElementById("t-heure-arrivee").value;
+        const dureeValue = document.getElementById("t-duree").value;
+        const prixValue = document.getElementById("t-prix").value;
+        const placesValue = document.getElementById("t-places").value;
+
+        if (
+          !vehiculeValue ||
+          !ville_depart ||
+          !ville_arrivee ||
+          !date_depart ||
+          !heure_depart ||
+          !prixValue ||
+          !placesValue
+        ) {
+          afficherAlerte(
+            "msg-trajet",
+            "erreur",
+            "Tous les champs obligatoires doivent être remplis."
+          );
+          return;
+        }
+
+        const body = {
+          vehicule_id: parseInt(vehiculeValue, 10),
+          ville_depart,
+          ville_arrivee,
+          adresse_depart,
+          adresse_arrivee,
+          date_depart,
+          heure_depart,
+          date_arrivee: date_arrivee || null,
+          heure_arrivee: heure_arrivee || null,
+          duree_minutes: dureeValue ? parseInt(dureeValue, 10) : null,
+          prix_par_personne: parseFloat(prixValue),
+          nb_places_total: parseInt(placesValue, 10),
+        };
+
+        try {
+          const rep = await apiProtegee("/covoiturages", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+
+          const data = await rep.json();
+          afficherAlerte(
+            "msg-trajet",
+            rep.ok ? "succes" : "erreur",
+            data.message || "Erreur."
+          );
+
+          if (rep.ok) {
+            chargerHistorique();
+          }
+        } catch {
+          afficherAlerte("msg-trajet", "erreur", "Erreur serveur.");
+        }
+      }
+      window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("sidebar-avatar").textContent = (user.pseudo ||
+          "?")[0].toUpperCase();
+        document.getElementById("sidebar-pseudo").textContent = user.pseudo;
+        document.getElementById(
+          "sidebar-credits"
+        ).textContent = `💳 ${user.credits} crédits`;
+        document.getElementById("prenom-bienvenue").textContent = user.pseudo;
+        document.getElementById("db-credits").textContent = user.credits;
+        document.getElementById("nav-pseudo").textContent = user.pseudo;
+
+        let roleLabel = "Utilisateur";
+        if (user.est_chauffeur && user.est_passager)
+          roleLabel = "🔄 Chauffeur & Passager";
+        else if (user.est_chauffeur) roleLabel = "🚗 Chauffeur";
+        else roleLabel = "🎒 Passager";
+        document.getElementById("sidebar-role").textContent = roleLabel;
+
+        if (!user.est_chauffeur) {
+          document.getElementById("section-prefs-chauffeur").style.display =
+            "none";
+        }
+
+        document
+          .getElementById("btn-deconnexion")
+          .addEventListener("click", (e) => {
+            e.preventDefault();
+            deconnecter();
+          });
+
+        document
+          .getElementById("btn-save-role")
+          .addEventListener("click", sauvegarderRole);
+        document
+          .getElementById("btn-save-prefs")
+          .addEventListener("click", sauvegarderPrefs);
+        document
+          .getElementById("btn-add-vehicule")
+          .addEventListener("click", ajouterVehicule);
+        document
+          .getElementById("btn-publier-trajet")
+          .addEventListener("click", proposerTrajet);
+
+        brancherSelectionRole();
+        marquerRoleActuel();
+        chargerHistorique();
+        chargerVehicules();
+      });
+    </script>
+  </body>
+</html>

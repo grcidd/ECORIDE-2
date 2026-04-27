@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Détail du trajet</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <a href="index.html" class="logo">EcoRide</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="covoiturages.html">Covoiturages</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="profil.html" class="btn btn-vert">Mon espace</a>
+      </div>
+    </nav>
+
+    <main style="padding: 120px 24px 60px; max-width: 900px; margin: auto">
+      <a href="covoiturages.html" style="color: var(--vert-principal)">
+        ← Retour aux covoiturages
+      </a>
+
+      <section class="carte-blanche" style="margin-top: 24px">
+        <h1 id="trajet-titre">Chargement du trajet...</h1>
+
+        <div id="trajet-detail" style="margin-top: 24px"></div>
+
+        <button
+          id="btn-participer"
+          class="btn btn-vert"
+          style="margin-top: 24px"
+        >
+          Participer au trajet
+        </button>
+
+        <div id="message" style="margin-top: 20px"></div>
+      </section>
+    </main>
+
+    <script src="js/auth.js"></script>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+
+      async function chargerDetail() {
+        if (!id) {
+          document.getElementById("trajet-titre").textContent =
+            "Trajet introuvable";
+          return;
+        }
+
+        try {
+          const rep = await fetch(`${API}/covoiturages/${id}`);
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            document.getElementById("trajet-titre").textContent =
+              data.message || "Erreur de chargement";
+            return;
+          }
+
+          const trajet = data.trajet;
+
+          document.getElementById(
+            "trajet-titre"
+          ).textContent = `${trajet.ville_depart} → ${trajet.ville_arrivee}`;
+
+          document.getElementById("trajet-detail").innerHTML = `
+            <p><strong>Date :</strong> ${formatDate(trajet.date_depart)}</p>
+            <p><strong>Heure de départ :</strong> ${trajet.heure_depart}</p>
+            <p><strong>Prix :</strong> ${trajet.prix_par_personne} crédits</p>
+            <p><strong>Places restantes :</strong> ${
+              trajet.nb_places_restantes
+            }</p>
+            <p><strong>Chauffeur :</strong> ${
+              trajet.chauffeur?.pseudo || "Non renseigné"
+            }</p>
+            <p><strong>Véhicule :</strong> ${
+              trajet.vehicule
+                ? `${trajet.vehicule.marque} ${trajet.vehicule.modele}`
+                : "Non renseigné"
+            }</p>
+            <p><strong>Énergie :</strong> ${
+              trajet.vehicule?.energie || "Non renseignée"
+            }</p>
+            <p><strong>Écologique :</strong> ${
+              trajet.est_ecologique ? "Oui 🌱" : "Non"
+            }</p>
+          `;
+        } catch (error) {
+          document.getElementById("trajet-titre").textContent =
+            "Erreur serveur.";
+        }
+      }
+
+      async function participer() {
+        if (!estConnecte()) {
+          window.location.href = "connexion.html";
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee(`/covoiturages/${id}/participer`, {
+            method: "POST",
+          });
+
+          const data = await rep.json();
+
+          document.getElementById("message").innerHTML = `
+            <div class="alerte alerte-${rep.ok ? "succes" : "erreur"}">
+              ${data.message}
+            </div>
+          `;
+
+          if (rep.ok) {
+            chargerDetail();
+          }
+        } catch (error) {
+          document.getElementById("message").innerHTML = `
+            <div class="alerte alerte-erreur">
+              Erreur serveur.
+            </div>
+          `;
+        }
+      }
+
+      function formatDate(date) {
+        if (!date) return "—";
+        return new Date(date).toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+
+      document
+        .getElementById("btn-participer")
+        .addEventListener("click", participer);
+
+      chargerDetail();
+    </script>
+  </body>
+</html>

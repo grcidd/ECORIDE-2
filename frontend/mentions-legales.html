@@ -1,0 +1,46 @@
+# 🌿 EcoRide — Plateforme de covoiturage écologique Application web de
+covoiturage développée dans le cadre du titre professionnel **Développeur Web et
+Web Mobile (DWWM)**. --- ## 🚀 Lancer le projet en local ### Prérequis -
+[Node.js](https://nodejs.org) v18 ou supérieur - Un compte
+[Supabase](https://supabase.com) (gratuit) - Un compte [MongoDB
+Atlas](https://mongodb.com/atlas) (gratuit) --- ### 1. Cloner le projet ```bash
+git clone https://github.com/TON_PSEUDO/ecoride.git cd ecoride ``` --- ### 2.
+Configurer la base de données Supabase 1. Crée un projet sur
+[supabase.com](https://supabase.com) 2. Va dans **SQL Editor** 3. Exécute le
+fichier `database/schema.sql` (création des tables) 4. Exécute le fichier
+`database/seed.sql` (données de test) --- ### 3. Configurer MongoDB Atlas 1.
+Crée un cluster gratuit sur [mongodb.com/atlas](https://www.mongodb.com/atlas)
+2. Crée un utilisateur dans **Database Access** 3. Autorise toutes les IPs dans
+**Network Access** (0.0.0.0/0) 4. Copie l'URI de connexion --- ### 4. Configurer
+les variables d'environnement Dans le dossier `backend/`, crée un fichier `.env`
+: ```env PORT=3000 SUPABASE_URL=https://XXXXXXXX.supabase.co
+SUPABASE_KEY=ta_clé_anon_public
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/ecoride
+JWT_SECRET=une_phrase_secrete_tres_longue_ici ``` --- ### 5. Installer les
+dépendances et lancer le back-end ```bash cd backend npm install npm run dev ```
+Le serveur tourne sur : `http://localhost:3000` --- ### 6. Lancer le front-end
+Ouvre le dossier `frontend/` avec **Live Server** (extension VS Code) ou ouvre
+directement `frontend/index.html` dans ton navigateur. --- ## 🔑 Comptes de test
+| Rôle | Email | Mot de passe | |------|-------|--------------| | Administrateur
+| admin@ecoride.fr | Test1234! | | Employé | employe@ecoride.fr | Test1234! | |
+Chauffeur | lisa@test.fr | Test1234! | | Passager | gracie@test.fr | Test1234! |
+--- ## 🗂️ Structure du projet ``` ecoride/ ├── frontend/ # Interface utilisateur
+(HTML/CSS/JS) │ ├── index.html │ ├── covoiturages.html │ ├── detail.html │ ├──
+connexion.html │ ├── profil.html │ ├── employe.html │ ├── admin.html │ ├──
+mentions-legales.html │ ├── css/style.css │ └── js/auth.js │ ├── backend/ #
+Serveur Node.js + Express │ ├── server.js │ ├── config/ │ ├── controllers/ │ ├──
+routes/ │ └── middleware/ │ └── database/ # Scripts SQL ├── schema.sql └──
+seed.sql ``` --- ## 🛠️ Stack technique | Couche | Technologie |
+|--------|-------------| | Front-end | HTML5, CSS3, JavaScript vanilla | |
+Back-end | Node.js, Express.js | | BDD relationnelle | PostgreSQL via Supabase |
+| BDD NoSQL | MongoDB Atlas | | Auth | JWT (jsonwebtoken) + bcrypt | |
+Déploiement front | Netlify | | Déploiement back | Render | --- ## 🔐 Sécurité -
+Mots de passe hashés avec bcrypt (salt rounds: 10) - Authentification par token
+JWT (expiration 24h) - Vérification du rôle sur chaque route protégée -
+Validation des champs côté back-end - Comptes suspendus bloqués à la connexion
+--- ## 📋 Fonctionnalités - ✅ Page d'accueil avec recherche - ✅ Liste des
+covoiturages avec filtres - ✅ Détail d'un trajet + avis chauffeur - ✅
+Inscription / Connexion - ✅ Espace utilisateur (profil, rôle, véhicule) - ✅
+Proposer un trajet (chauffeur) - ✅ Participer à un trajet (passager) - ✅
+Historique + démarrer/terminer un trajet - ✅ Espace employé (modération des
+avis) - ✅ Espace admin (stats, graphiques, gestion comptes)

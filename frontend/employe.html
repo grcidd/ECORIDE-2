@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Espace Employé</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .page-employe {
+        padding-top: 80px;
+        min-height: 100vh;
+        background: var(--gris-fond);
+      }
+
+      .employe-header {
+        background: linear-gradient(135deg, var(--vert-fonce), #2d4a3e);
+        padding: 40px 48px;
+        color: white;
+      }
+
+      .employe-header h1 {
+        color: white;
+        font-size: 1.8rem;
+      }
+      .employe-header p {
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 6px;
+      }
+
+      .employe-content {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+
+      .onglets-employe {
+        display: flex;
+        gap: 0;
+        background: white;
+        border-radius: var(--radius);
+        padding: 6px;
+        box-shadow: var(--ombre);
+        margin-bottom: 32px;
+        width: fit-content;
+      }
+
+      .onglet-employe {
+        padding: 12px 24px;
+        border: none;
+        background: none;
+        border-radius: 10px;
+        font-family: var(--font-corps);
+        font-size: 0.92rem;
+        font-weight: 500;
+        color: var(--gris-texte);
+        cursor: pointer;
+        transition: var(--transition);
+      }
+
+      .onglet-employe.actif {
+        background: var(--vert-principal);
+        color: white;
+        font-weight: 600;
+      }
+
+      .panneau-employe {
+        display: none;
+      }
+      .panneau-employe.actif {
+        display: block;
+      }
+
+      /* Carte avis */
+      .carte-avis {
+        background: white;
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--ombre);
+        border: 1px solid var(--gris-bordure);
+        margin-bottom: 16px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 20px;
+        align-items: start;
+      }
+
+      .avis-meta {
+        font-size: 0.82rem;
+        color: var(--gris-texte);
+        margin-bottom: 8px;
+      }
+
+      .avis-contenu {
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: var(--noir-doux);
+        margin: 8px 0;
+      }
+
+      .avis-etoiles {
+        color: var(--warning);
+        font-size: 1rem;
+      }
+
+      .avis-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .btn-valider {
+        background: var(--vert-pale);
+        color: var(--vert-fonce);
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        white-space: nowrap;
+      }
+
+      .btn-valider:hover {
+        background: var(--vert-clair);
+        color: white;
+      }
+
+      .btn-refuser {
+        background: #ffe5e7;
+        color: var(--erreur);
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        white-space: nowrap;
+      }
+
+      .btn-refuser:hover {
+        background: var(--erreur);
+        color: white;
+      }
+
+      /* Carte signalement */
+      .carte-signalement {
+        background: white;
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--ombre);
+        border: 1px solid var(--gris-bordure);
+        border-left: 4px solid var(--warning);
+        margin-bottom: 16px;
+      }
+
+      .signalement-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .signalement-trajet {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--noir-doux);
+      }
+
+      .signalement-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .signalement-personne {
+        background: var(--gris-fond);
+        border-radius: var(--radius-petit);
+        padding: 12px;
+        font-size: 0.85rem;
+      }
+
+      .signalement-personne strong {
+        display: block;
+        margin-bottom: 2px;
+      }
+
+      .signalement-commentaire {
+        background: #fff4e5;
+        border-radius: var(--radius-petit);
+        padding: 14px;
+        font-size: 0.9rem;
+        color: var(--noir-doux);
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+
+      .zone-vide {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--gris-texte);
+      }
+
+      .zone-vide .icone {
+        font-size: 3rem;
+        margin-bottom: 12px;
+      }
+
+      .compteur-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        background: var(--erreur);
+        color: white;
+        border-radius: 50%;
+        font-size: 0.72rem;
+        font-weight: 700;
+        margin-left: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="index.html" class="logo"><span></span> EcoRide</a>
+      <div class="nav-actions">
+        <span
+          id="employe-nom"
+          style="color: var(--gris-texte); font-size: 0.9rem"
+        ></span>
+        <button
+          class="btn btn-contour"
+          onclick="deconnecter()"
+          style="padding: 8px 16px"
+        >
+          Déconnexion
+        </button>
+      </div>
+    </nav>
+
+    <div class="page-employe">
+      <div class="employe-header">
+        <h1>👔 Espace Employé</h1>
+        <p>Modération des avis et gestion des signalements</p>
+      </div>
+
+      <div class="employe-content">
+        <!-- Onglets -->
+        <div class="onglets-employe">
+          <button
+            class="onglet-employe actif"
+            onclick="afficherOnglet('avis', this)"
+          >
+            💬 Avis à valider
+            <span class="compteur-badge" id="compteur-avis">0</span>
+          </button>
+          <button
+            class="onglet-employe"
+            onclick="afficherOnglet('signalements', this)"
+          >
+            ⚠️ Signalements
+            <span class="compteur-badge" id="compteur-sig">0</span>
+          </button>
+        </div>
+
+        <!-- AVIS -->
+        <div class="panneau-employe actif" id="panneau-avis">
+          <div id="liste-avis">
+            <div class="zone-chargement"><div class="loader"></div></div>
+          </div>
+        </div>
+
+        <!-- SIGNALEMENTS -->
+        <div class="panneau-employe" id="panneau-signalements">
+          <div id="liste-signalements">
+            <div class="zone-chargement"><div class="loader"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+      const API = "http://localhost:3000/api";
+
+      // Protection : doit être employé (role_id 2) ou admin (role_id 3)
+      const user = getUser();
+      if (!user || (user.role_id !== 2 && user.role_id !== 3)) {
+        window.location.href = "connexion.html";
+      }
+
+      document.getElementById("employe-nom").textContent = `👔 ${user.pseudo}`;
+
+      window.addEventListener("DOMContentLoaded", () => {
+        chargerAvis();
+        chargerSignalements();
+      });
+
+      function afficherOnglet(nom, btn) {
+        document
+          .querySelectorAll(".panneau-employe")
+          .forEach((p) => p.classList.remove("actif"));
+        document
+          .querySelectorAll(".onglet-employe")
+          .forEach((b) => b.classList.remove("actif"));
+        document.getElementById(`panneau-${nom}`).classList.add("actif");
+        btn.classList.add("actif");
+      }
+
+      // ---- Charger les avis ----
+      async function chargerAvis() {
+        try {
+          const rep = await apiProtegee("/admin/avis");
+          const data = await rep.json();
+          const avis = data.avis || [];
+
+          document.getElementById("compteur-avis").textContent = avis.length;
+
+          if (avis.length === 0) {
+            document.getElementById("liste-avis").innerHTML = `
+                    <div class="zone-vide">
+                        <div class="icone">✅</div>
+                        <h3>Aucun avis en attente</h3>
+                        <p>Tous les avis ont été traités.</p>
+                    </div>`;
+            return;
+          }
+
+          document.getElementById("liste-avis").innerHTML = avis
+            .map(
+              (a) => `
+                <div class="carte-avis" id="avis-${a.avis_id}">
+                    <div>
+                        <div class="avis-meta">
+                            De <strong>${a.passager?.pseudo || "?"}</strong>
+                            sur le chauffeur <strong>${
+                              a.chauffeur?.pseudo || "?"
+                            }</strong>
+                            · ${
+                              a.covoiturage
+                                ? `${a.covoiturage.ville_depart} → ${a.covoiturage.ville_arrivee}`
+                                : ""
+                            }
+                            · ${formatDate(a.created_at)}
+                        </div>
+                        <div class="avis-etoiles">${"⭐".repeat(
+                          a.note || 0
+                        )}</div>
+                        <div class="avis-contenu">"${
+                          a.commentaire || "Aucun commentaire."
+                        }"</div>
+                    </div>
+                    <div class="avis-actions">
+                        <button class="btn-valider" onclick="traiterAvis(${
+                          a.avis_id
+                        }, 'valide')">
+                            ✅ Valider
+                        </button>
+                        <button class="btn-refuser" onclick="traiterAvis(${
+                          a.avis_id
+                        }, 'refuse')">
+                            ❌ Refuser
+                        </button>
+                    </div>
+                </div>`
+            )
+            .join("");
+        } catch (err) {
+          document.getElementById("liste-avis").innerHTML =
+            '<div class="alerte alerte-erreur">Impossible de charger les avis.</div>';
+        }
+      }
+
+      // ---- Traiter un avis ----
+      async function traiterAvis(id, action) {
+        try {
+          const rep = await apiProtegee(`/admin/avis/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ action }),
+          });
+          const data = await rep.json();
+
+          if (rep.ok) {
+            // Supprimer la carte de l'interface
+            document.getElementById(`avis-${id}`)?.remove();
+            const compteur = document.getElementById("compteur-avis");
+            compteur.textContent = Math.max(
+              0,
+              parseInt(compteur.textContent) - 1
+            );
+
+            // Si plus d'avis, afficher message vide
+            if (document.getElementById("liste-avis").children.length === 0) {
+              document.getElementById("liste-avis").innerHTML = `
+                        <div class="zone-vide">
+                            <div class="icone">✅</div>
+                            <h3>Aucun avis en attente</h3>
+                        </div>`;
+            }
+          } else {
+            alert(data.message);
+          }
+        } catch {
+          alert("Erreur serveur.");
+        }
+      }
+
+      // ---- Charger les signalements ----
+      async function chargerSignalements() {
+        try {
+          const rep = await apiProtegee("/admin/signalements");
+          const data = await rep.json();
+          const sigs = data.signalements || [];
+
+          document.getElementById("compteur-sig").textContent = sigs.length;
+
+          if (sigs.length === 0) {
+            document.getElementById("liste-signalements").innerHTML = `
+                    <div class="zone-vide">
+                        <div class="icone">🎉</div>
+                        <h3>Aucun signalement en attente</h3>
+                        <p>Tout se passe bien sur EcoRide !</p>
+                    </div>`;
+            return;
+          }
+
+          document.getElementById("liste-signalements").innerHTML = sigs
+            .map(
+              (s) => `
+                <div class="carte-signalement" id="sig-${s._id}">
+                    <div class="signalement-header">
+                        <div>
+                            <div class="signalement-trajet">
+                                #${s.covoiturage?.covoiturage_id || "?"} ·
+                                ${
+                                  s.covoiturage
+                                    ? `${s.covoiturage.ville_depart} → ${s.covoiturage.ville_arrivee}`
+                                    : "—"
+                                }
+                            </div>
+                            <div style="font-size:0.82rem; color:var(--gris-texte); margin-top:2px">
+                                📅 ${formatDate(
+                                  s.covoiturage?.date_depart
+                                )} · Signalé le ${formatDate(s.date)}
+                            </div>
+                        </div>
+                        <span class="statut-badge statut-planifie">En attente</span>
+                    </div>
+
+                    <div class="signalement-grid">
+                        <div class="signalement-personne">
+                            <strong>🎒 Passager</strong>
+                            ${s.passager?.pseudo || "?"}<br>
+                            <a href="mailto:${
+                              s.passager?.email
+                            }" style="color:var(--vert-principal); font-size:0.8rem">
+                                ${s.passager?.email || ""}
+                            </a>
+                        </div>
+                        <div class="signalement-personne">
+                            <strong>🚗 Chauffeur</strong>
+                            ${s.chauffeur?.pseudo || "?"}<br>
+                            <a href="mailto:${
+                              s.chauffeur?.email
+                            }" style="color:var(--vert-principal); font-size:0.8rem">
+                                ${s.chauffeur?.email || ""}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="signalement-commentaire">
+                        💬 "${s.commentaire || "Aucun détail fourni."}"
+                    </div>
+
+                    <button class="btn btn-vert" style="padding:10px 20px; font-size:0.85rem"
+                        onclick="marquerTraite('${s._id}')">
+                        ✅ Marquer comme traité
+                    </button>
+                </div>`
+            )
+            .join("");
+        } catch (err) {
+          document.getElementById("liste-signalements").innerHTML =
+            '<div class="alerte alerte-erreur">Impossible de charger les signalements.</div>';
+        }
+      }
+
+      async function marquerTraite(id) {
+        try {
+          const rep = await apiProtegee(`/admin/signalements/${id}`, {
+            method: "PATCH",
+          });
+          if (rep.ok) {
+            document.getElementById(`sig-${id}`)?.remove();
+            const compteur = document.getElementById("compteur-sig");
+            compteur.textContent = Math.max(
+              0,
+              parseInt(compteur.textContent) - 1
+            );
+          }
+        } catch {
+          alert("Erreur serveur.");
+        }
+      }
+
+      function formatDate(d) {
+        if (!d) return "—";
+        return new Date(d).toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+    </script>
+  </body>
+</html>

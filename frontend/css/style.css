@@ -1,0 +1,388 @@
+/* ============================================
+   ECORIDE — Feuille de style globale
+   Palette : vert nature + blanc + noir doux
+   ============================================ */
+
+   @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+   /* --- Variables CSS --- */
+   :root {
+       --vert-principal: #2D6A4F;
+       --vert-clair: #52B788;
+       --vert-pale: #D8F3DC;
+       --vert-fonce: #1B4332;
+       --blanc: #FAFAFA;
+       --noir-doux: #1C1C1C;
+       --gris-texte: #555;
+       --gris-fond: #F4F4F2;
+       --gris-bordure: #E0E0E0;
+       --ecologique: #40916C;
+       --warning: #F4A261;
+       --erreur: #E63946;
+   
+       --font-titre: 'Fraunces', Georgia, serif;
+       --font-corps: 'DM Sans', sans-serif;
+   
+       --ombre: 0 4px 24px rgba(0,0,0,0.08);
+       --ombre-forte: 0 8px 40px rgba(0,0,0,0.14);
+       --radius: 16px;
+       --radius-petit: 8px;
+       --transition: all 0.25s ease;
+   }
+   
+   /* --- Reset & Base --- */
+   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+   
+   html { scroll-behavior: smooth; font-size: 16px; }
+   
+   body {
+       font-family: var(--font-corps);
+       background-color: var(--blanc);
+       color: var(--noir-doux);
+       line-height: 1.6;
+       -webkit-font-smoothing: antialiased;
+   }
+   
+   img { max-width: 100%; display: block; }
+   a { text-decoration: none; color: inherit; }
+   ul { list-style: none; }
+   
+   /* --- Typographie --- */
+   h1, h2, h3 {
+       font-family: var(--font-titre);
+       line-height: 1.2;
+       color: var(--noir-doux);
+   }
+   
+   h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; }
+   h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 600; }
+   h3 { font-size: 1.2rem; font-weight: 600; }
+   p  { color: var(--gris-texte); font-size: 1rem; }
+   
+   /* --- Boutons --- */
+   .btn {
+       display: inline-flex;
+       align-items: center;
+       gap: 8px;
+       padding: 14px 28px;
+       border-radius: 100px;
+       font-family: var(--font-corps);
+       font-size: 0.95rem;
+       font-weight: 600;
+       cursor: pointer;
+       border: none;
+       transition: var(--transition);
+   }
+   
+   .btn-vert {
+       background: var(--vert-principal);
+       color: white;
+   }
+   .btn-vert:hover {
+       background: var(--vert-fonce);
+       transform: translateY(-2px);
+       box-shadow: 0 6px 20px rgba(45,106,79,0.35);
+   }
+   
+   .btn-contour {
+       background: transparent;
+       color: var(--vert-principal);
+       border: 2px solid var(--vert-principal);
+   }
+   .btn-contour:hover {
+       background: var(--vert-pale);
+       transform: translateY(-2px);
+   }
+   
+   .btn-blanc {
+       background: white;
+       color: var(--vert-fonce);
+       box-shadow: var(--ombre);
+   }
+   .btn-blanc:hover {
+       background: var(--vert-pale);
+       transform: translateY(-2px);
+   }
+   
+   /* --- Navigation --- */
+   .navbar {
+       position: fixed;
+       top: 0; left: 0; right: 0;
+       z-index: 1000;
+       display: flex;
+       align-items: center;
+       justify-content: space-between;
+       padding: 18px 48px;
+       background: rgba(250,250,250,0.92);
+       backdrop-filter: blur(12px);
+       border-bottom: 1px solid var(--gris-bordure);
+       transition: var(--transition);
+   }
+   
+   .navbar.scrolled {
+       box-shadow: var(--ombre);
+       padding: 12px 48px;
+   }
+   
+   .logo {
+       font-family: var(--font-titre);
+       font-size: 1.6rem;
+       font-weight: 700;
+       color: var(--vert-principal);
+       display: flex;
+       align-items: center;
+       gap: 8px;
+   }
+   
+   .logo span {
+       display: inline-block;
+       width: 10px;
+       height: 10px;
+       background: var(--vert-clair);
+       border-radius: 50%;
+       margin-bottom: 2px;
+   }
+   
+   .nav-links {
+       display: flex;
+       align-items: center;
+       gap: 36px;
+   }
+   
+   .nav-links a {
+       font-size: 0.95rem;
+       font-weight: 500;
+       color: var(--gris-texte);
+       transition: var(--transition);
+       position: relative;
+   }
+   
+   .nav-links a::after {
+       content: '';
+       position: absolute;
+       bottom: -4px; left: 0;
+       width: 0; height: 2px;
+       background: var(--vert-principal);
+       transition: width 0.25s ease;
+   }
+   
+   .nav-links a:hover { color: var(--vert-principal); }
+   .nav-links a:hover::after { width: 100%; }
+   
+   .nav-actions { display: flex; gap: 12px; align-items: center; }
+   
+   /* Menu burger mobile */
+   .burger {
+       display: none;
+       flex-direction: column;
+       gap: 5px;
+       cursor: pointer;
+       padding: 4px;
+   }
+   .burger span {
+       display: block;
+       width: 24px; height: 2px;
+       background: var(--noir-doux);
+       border-radius: 2px;
+       transition: var(--transition);
+   }
+   
+   /* --- Cartes Covoiturage --- */
+   .carte-trajet {
+       background: white;
+       border-radius: var(--radius);
+       padding: 24px;
+       box-shadow: var(--ombre);
+       border: 1px solid var(--gris-bordure);
+       transition: var(--transition);
+       display: flex;
+       flex-direction: column;
+       gap: 16px;
+   }
+   
+   .carte-trajet:hover {
+       transform: translateY(-4px);
+       box-shadow: var(--ombre-forte);
+       border-color: var(--vert-clair);
+   }
+   
+   .carte-chauffeur {
+       display: flex;
+       align-items: center;
+       gap: 12px;
+   }
+   
+   .avatar {
+       width: 48px; height: 48px;
+       border-radius: 50%;
+       object-fit: cover;
+       background: var(--vert-pale);
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       font-size: 1.2rem;
+       font-weight: 700;
+       color: var(--vert-principal);
+       flex-shrink: 0;
+   }
+   
+   .note-etoiles {
+       display: flex;
+       align-items: center;
+       gap: 4px;
+       font-size: 0.85rem;
+       font-weight: 600;
+       color: var(--noir-doux);
+   }
+   
+   .badge-eco {
+       display: inline-flex;
+       align-items: center;
+       gap: 4px;
+       padding: 4px 10px;
+       background: var(--vert-pale);
+       color: var(--ecologique);
+       border-radius: 100px;
+       font-size: 0.78rem;
+       font-weight: 600;
+   }
+   
+   /* --- Formulaire de recherche --- */
+   .form-recherche {
+       background: white;
+       border-radius: var(--radius);
+       padding: 28px;
+       box-shadow: var(--ombre-forte);
+       display: flex;
+       flex-wrap: wrap;
+       gap: 12px;
+       align-items: flex-end;
+   }
+   
+   .champ-groupe {
+       display: flex;
+       flex-direction: column;
+       gap: 6px;
+       flex: 1;
+       min-width: 160px;
+   }
+   
+   .champ-groupe label {
+       font-size: 0.8rem;
+       font-weight: 600;
+       color: var(--gris-texte);
+       text-transform: uppercase;
+       letter-spacing: 0.05em;
+   }
+   
+   .champ-groupe input, .champ-groupe select {
+       padding: 14px 16px;
+       border: 1.5px solid var(--gris-bordure);
+       border-radius: var(--radius-petit);
+       font-family: var(--font-corps);
+       font-size: 0.95rem;
+       color: var(--noir-doux);
+       background: var(--blanc);
+       outline: none;
+       transition: var(--transition);
+       width: 100%;
+   }
+   
+   .champ-groupe input:focus, .champ-groupe select:focus {
+       border-color: var(--vert-principal);
+       box-shadow: 0 0 0 3px rgba(45,106,79,0.12);
+   }
+   
+   /* --- Footer --- */
+   footer {
+       background: var(--vert-fonce);
+       color: rgba(255,255,255,0.75);
+       padding: 48px;
+       display: flex;
+       align-items: center;
+       justify-content: space-between;
+       flex-wrap: wrap;
+       gap: 24px;
+       margin-top: 80px;
+   }
+   
+   footer a {
+       color: rgba(255,255,255,0.75);
+       transition: var(--transition);
+   }
+   footer a:hover { color: white; }
+   
+   .footer-logo {
+       font-family: var(--font-titre);
+       font-size: 1.4rem;
+       color: white;
+       font-weight: 700;
+   }
+   
+   /* --- Alertes / Messages --- */
+   .alerte {
+       padding: 14px 20px;
+       border-radius: var(--radius-petit);
+       font-size: 0.9rem;
+       font-weight: 500;
+       margin: 12px 0;
+   }
+   .alerte-succes { background: var(--vert-pale); color: var(--vert-fonce); }
+   .alerte-erreur { background: #FFE5E7; color: var(--erreur); }
+   .alerte-info   { background: #FFF4E5; color: #B56B00; }
+   
+   /* --- Loader --- */
+   .loader {
+       display: inline-block;
+       width: 24px; height: 24px;
+       border: 3px solid var(--vert-pale);
+       border-top-color: var(--vert-principal);
+       border-radius: 50%;
+       animation: spin 0.8s linear infinite;
+   }
+   @keyframes spin { to { transform: rotate(360deg); } }
+   
+   /* --- Utilitaires --- */
+   .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+   .text-vert  { color: var(--vert-principal); }
+   .text-centre { text-align: center; }
+   .mt-8  { margin-top: 8px; }
+   .mt-16 { margin-top: 16px; }
+   .mt-32 { margin-top: 32px; }
+   .mb-32 { margin-bottom: 32px; }
+   .hidden { display: none !important; }
+   
+   /* --- Animations d'entrée --- */
+   @keyframes fadeUp {
+       from { opacity: 0; transform: translateY(24px); }
+       to   { opacity: 1; transform: translateY(0); }
+   }
+   
+   .fade-up { animation: fadeUp 0.6s ease forwards; }
+   .fade-up-2 { animation: fadeUp 0.6s 0.15s ease both; }
+   .fade-up-3 { animation: fadeUp 0.6s 0.3s ease both; }
+   .fade-up-4 { animation: fadeUp 0.6s 0.45s ease both; }
+   
+   /* ============================================
+      RESPONSIVE
+      ============================================ */
+   @media (max-width: 768px) {
+       .navbar { padding: 16px 20px; }
+       .nav-links { display: none; }
+       .nav-links.open {
+           display: flex;
+           flex-direction: column;
+           position: fixed;
+           top: 64px; left: 0; right: 0;
+           background: white;
+           padding: 24px;
+           gap: 20px;
+           box-shadow: var(--ombre-forte);
+           z-index: 999;
+       }
+       .burger { display: flex; }
+       .nav-actions .btn { padding: 10px 18px; font-size: 0.85rem; }
+       footer { flex-direction: column; text-align: center; padding: 32px 20px; }
+       .form-recherche { flex-direction: column; }
+       .champ-groupe { min-width: 100%; }
+   }

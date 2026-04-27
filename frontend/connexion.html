@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Connexion</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .auth-page {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      /* Côté gauche — visuel */
+      .auth-visuel {
+        background: linear-gradient(
+          160deg,
+          var(--vert-fonce),
+          var(--vert-principal)
+        );
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 60px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .auth-visuel::before {
+        content: "";
+        position: absolute;
+        bottom: -80px;
+        right: -80px;
+        width: 320px;
+        height: 320px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 50%;
+      }
+
+      .auth-visuel::after {
+        content: "";
+        position: absolute;
+        top: -40px;
+        left: -40px;
+        width: 180px;
+        height: 180px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 50%;
+      }
+
+      .auth-logo {
+        font-family: var(--font-titre);
+        font-size: 2rem;
+        color: white;
+        font-weight: 700;
+        margin-bottom: 48px;
+      }
+
+      .auth-visuel h2 {
+        color: white;
+        font-size: 2.2rem;
+        margin-bottom: 20px;
+        line-height: 1.3;
+      }
+
+      .auth-visuel p {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 1.05rem;
+        line-height: 1.7;
+        max-width: 380px;
+      }
+
+      .auth-avantages {
+        margin-top: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .auth-avantage {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.95rem;
+      }
+
+      .auth-avantage span:first-child {
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+
+      /* Côté droit — formulaire */
+      .auth-formulaire {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 60px;
+        background: var(--blanc);
+      }
+
+      .auth-formulaire h3 {
+        font-family: var(--font-titre);
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+      }
+
+      .auth-formulaire .sous-titre {
+        color: var(--gris-texte);
+        margin-bottom: 36px;
+        font-size: 0.95rem;
+      }
+
+      /* Onglets connexion / inscription */
+      .onglets {
+        display: flex;
+        border-bottom: 2px solid var(--gris-bordure);
+        margin-bottom: 32px;
+        gap: 0;
+      }
+
+      .onglet {
+        padding: 12px 28px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--gris-texte);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: var(--transition);
+        background: none;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        font-family: var(--font-corps);
+      }
+
+      .onglet.actif {
+        color: var(--vert-principal);
+        border-bottom-color: var(--vert-principal);
+      }
+
+      .panneau {
+        display: none;
+      }
+      .panneau.actif {
+        display: block;
+      }
+
+      .champ-groupe {
+        margin-bottom: 18px;
+      }
+
+      .champ-groupe label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--noir-doux);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .champ-groupe input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1.5px solid var(--gris-bordure);
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.95rem;
+        outline: none;
+        transition: var(--transition);
+        background: white;
+      }
+
+      .champ-groupe input:focus {
+        border-color: var(--vert-principal);
+        box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.1);
+      }
+
+      .champ-indice {
+        font-size: 0.78rem;
+        color: var(--gris-texte);
+        margin-top: 4px;
+      }
+
+      .btn-submit {
+        width: 100%;
+        justify-content: center;
+        padding: 16px;
+        font-size: 1rem;
+        margin-top: 8px;
+      }
+
+      .lien-bas {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 0.88rem;
+        color: var(--gris-texte);
+      }
+
+      .lien-bas a {
+        color: var(--vert-principal);
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .credits-info {
+        background: var(--vert-pale);
+        border-radius: var(--radius-petit);
+        padding: 14px 16px;
+        font-size: 0.88rem;
+        color: var(--vert-fonce);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      @media (max-width: 768px) {
+        .auth-page {
+          grid-template-columns: 1fr;
+        }
+        .auth-visuel {
+          display: none;
+        }
+        .auth-formulaire {
+          padding: 32px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-page">
+      <!-- ---- Côté gauche : visuel ---- -->
+      <div class="auth-visuel">
+        <a href="index.html" class="auth-logo">🌿 EcoRide</a>
+        <h2>Rejoins la communauté écolo.</h2>
+        <p>
+          Des milliers de conducteurs et passagers voyagent ensemble chaque jour
+          et réduisent leur empreinte carbone.
+        </p>
+
+        <div class="auth-avantages">
+          <div class="auth-avantage">
+            <span>🎁</span>
+            <span>20 crédits offerts à l'inscription</span>
+          </div>
+          <div class="auth-avantage">
+            <span>🌱</span>
+            <span>Trajets écologiques identifiés</span>
+          </div>
+          <div class="auth-avantage">
+            <span>⭐</span>
+            <span>Conducteurs notés et vérifiés</span>
+          </div>
+          <div class="auth-avantage">
+            <span>💰</span>
+            <span>Économisez sur vos déplacements</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- Côté droit : formulaire ---- -->
+      <div class="auth-formulaire">
+        <!-- Onglets -->
+        <div class="onglets">
+          <button
+            class="onglet actif"
+            onclick="afficherOnglet('connexion', this)"
+          >
+            Connexion
+          </button>
+          <button class="onglet" onclick="afficherOnglet('inscription', this)">
+            Inscription
+          </button>
+        </div>
+
+        <!-- ---- PANNEAU CONNEXION ---- -->
+        <div class="panneau actif" id="panneau-connexion">
+          <h3>Content de te revoir 👋</h3>
+          <p class="sous-titre">Connecte-toi pour accéder à ton espace.</p>
+
+          <div id="msg-connexion"></div>
+
+          <div class="champ-groupe">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" placeholder="ton@email.fr" />
+          </div>
+          <div class="champ-groupe">
+            <label for="login-password">Mot de passe</label>
+            <input type="password" id="login-password" placeholder="••••••••" />
+          </div>
+
+          <button class="btn btn-vert btn-submit" onclick="seConnecter()">
+            Se connecter
+          </button>
+
+          <p class="lien-bas">
+            Pas encore de compte ?
+            <a
+              onclick="afficherOnglet('inscription', document.querySelectorAll('.onglet')[1])"
+            >
+              S'inscrire gratuitement
+            </a>
+          </p>
+        </div>
+
+        <!-- ---- PANNEAU INSCRIPTION ---- -->
+        <div class="panneau" id="panneau-inscription">
+          <h3>Créer mon compte 🌿</h3>
+          <p class="sous-titre">Gratuit et sans engagement.</p>
+
+          <div class="credits-info">
+            🎁 Tu recevras <strong>20 crédits</strong> offerts dès ton
+            inscription !
+          </div>
+
+          <div id="msg-inscription"></div>
+
+          <div class="champ-groupe">
+            <label for="reg-pseudo">Pseudo</label>
+            <input
+              type="text"
+              id="reg-pseudo"
+              placeholder="Ton pseudo public"
+            />
+          </div>
+          <div class="champ-groupe">
+            <label for="reg-email">Email</label>
+            <input type="email" id="reg-email" placeholder="ton@email.fr" />
+          </div>
+          <div class="champ-groupe">
+            <label for="reg-password">Mot de passe</label>
+            <input
+              type="password"
+              id="reg-password"
+              placeholder="Min. 8 caractères"
+            />
+            <p class="champ-indice">
+              Au moins 8 caractères, une majuscule et un chiffre.
+            </p>
+          </div>
+          <div class="champ-groupe">
+            <label for="reg-confirm">Confirmer le mot de passe</label>
+            <input type="password" id="reg-confirm" placeholder="••••••••" />
+          </div>
+
+          <button class="btn btn-vert btn-submit" onclick="sInscrire()">
+            Créer mon compte
+          </button>
+
+          <p class="lien-bas">
+            Déjà un compte ?
+            <a
+              onclick="afficherOnglet('connexion', document.querySelectorAll('.onglet')[0])"
+            >
+              Se connecter
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+      // ---- Gestion des onglets ----
+      function afficherOnglet(nom, bouton) {
+        // Masquer tous les panneaux
+        document
+          .querySelectorAll(".panneau")
+          .forEach((p) => p.classList.remove("actif"));
+        document
+          .querySelectorAll(".onglet")
+          .forEach((b) => b.classList.remove("actif"));
+
+        // Afficher le bon panneau
+        document.getElementById(`panneau-${nom}`).classList.add("actif");
+        bouton.classList.add("actif");
+      }
+
+      // ---- Afficher un message ----
+      function afficherMessage(idElement, texte, type) {
+        const el = document.getElementById(idElement);
+        el.innerHTML = `<div class="alerte alerte-${type}">${texte}</div>`;
+      }
+
+      // ---- CONNEXION ----
+      async function seConnecter() {
+        const email = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+
+        if (!email || !password) {
+          afficherMessage(
+            "msg-connexion",
+            "Merci de remplir tous les champs.",
+            "erreur"
+          );
+          return;
+        }
+
+        try {
+          const reponse = await fetch(`${API}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await reponse.json();
+
+          if (!reponse.ok) {
+            afficherMessage("msg-connexion", data.message, "erreur");
+            return;
+          }
+
+          // Sauvegarde du token et redirection
+          sauvegarderSession(data.token, data.user);
+
+          // Redirection selon le rôle
+          if (data.user.role_id === 3) {
+            window.location.href = "admin.html";
+          } else if (data.user.role_id === 2) {
+            window.location.href = "employe.html";
+          } else {
+            window.location.href = "profil.html";
+          }
+        } catch (err) {
+          afficherMessage(
+            "msg-connexion",
+            "Erreur de connexion au serveur.",
+            "erreur"
+          );
+        }
+      }
+
+      // ---- INSCRIPTION ----
+      async function sInscrire() {
+        const pseudo = document.getElementById("reg-pseudo").value.trim();
+        const email = document.getElementById("reg-email").value.trim();
+        const password = document.getElementById("reg-password").value;
+        const confirm = document.getElementById("reg-confirm").value;
+
+        if (!pseudo || !email || !password || !confirm) {
+          afficherMessage(
+            "msg-inscription",
+            "Merci de remplir tous les champs.",
+            "erreur"
+          );
+          return;
+        }
+
+        if (password !== confirm) {
+          afficherMessage(
+            "msg-inscription",
+            "Les mots de passe ne correspondent pas.",
+            "erreur"
+          );
+          return;
+        }
+
+        try {
+          const reponse = await fetch(`${API}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pseudo, email, password }),
+          });
+
+          const data = await reponse.json();
+
+          if (!reponse.ok) {
+            afficherMessage("msg-inscription", data.message, "erreur");
+            return;
+          }
+
+          // Succès → on bascule sur l'onglet connexion
+          afficherMessage(
+            "msg-inscription",
+            "✅ Compte créé ! Tu peux maintenant te connecter.",
+            "succes"
+          );
+          setTimeout(() => {
+            afficherOnglet(
+              "connexion",
+              document.querySelectorAll(".onglet")[0]
+            );
+            document.getElementById("login-email").value = email;
+          }, 1500);
+        } catch (err) {
+          afficherMessage(
+            "msg-inscription",
+            "Erreur de connexion au serveur.",
+            "erreur"
+          );
+        }
+      }
+
+      // ---- Appui sur Entrée ----
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const actif = document.querySelector(".panneau.actif").id;
+          if (actif === "panneau-connexion") seConnecter();
+          else sInscrire();
+        }
+      });
+
+      // ---- Si déjà connecté → rediriger ----
+      if (estConnecte()) {
+        window.location.href = "profil.html";
+      }
+    </script>
+  </body>
+</html>

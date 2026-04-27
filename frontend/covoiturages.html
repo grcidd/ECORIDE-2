@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Covoiturages</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .page-cov {
+        padding-top: 80px;
+      }
+
+      /* Barre de recherche en haut */
+      .barre-recherche {
+        background: var(--vert-fonce);
+        padding: 32px 48px;
+      }
+
+      .barre-recherche h2 {
+        color: white;
+        font-size: 1.4rem;
+        margin-bottom: 20px;
+      }
+
+      .form-recherche {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        background: white;
+        padding: 24px;
+        border-radius: var(--radius);
+      }
+
+      .form-recherche .champ-groupe {
+        flex: 1;
+        min-width: 160px;
+      }
+
+      .form-recherche .champ-groupe label {
+        display: block;
+        color: var(--noir-doux);
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .form-recherche input {
+        background: white;
+        border: 1.5px solid var(--gris-bordure);
+        color: var(--noir-doux);
+        border-radius: var(--radius-petit);
+        padding: 13px 16px;
+        font-family: var(--font-corps);
+        font-size: 0.95rem;
+        width: 100%;
+        outline: none;
+      }
+
+      .form-recherche input::placeholder {
+        color: var(--gris-texte);
+      }
+
+      .form-recherche input:focus {
+        border-color: var(--vert-principal);
+        box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.12);
+      }
+      /* Layout principal */
+      .contenu-principal {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 32px;
+        max-width: 1180px;
+        margin: 40px auto;
+        padding: 0 24px;
+      }
+
+      /* ---- PANNEAU FILTRES ---- */
+      .filtres {
+        background: white;
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--ombre);
+        border: 1px solid var(--gris-bordure);
+        height: fit-content;
+        position: sticky;
+        top: 100px;
+      }
+
+      .filtres h3 {
+        font-size: 1rem;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .filtre-section {
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--gris-bordure);
+      }
+
+      .filtre-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .filtre-section label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--noir-doux);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .filtre-section input[type="range"] {
+        width: 100%;
+        accent-color: var(--vert-principal);
+      }
+
+      .filtre-section input[type="number"],
+      .filtre-section select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1.5px solid var(--gris-bordure);
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.9rem;
+        outline: none;
+        transition: var(--transition);
+      }
+
+      .filtre-section input:focus,
+      .filtre-section select:focus {
+        border-color: var(--vert-principal);
+      }
+
+      .toggle-eco {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: var(--gris-texte);
+      }
+
+      .toggle-eco input {
+        accent-color: var(--vert-principal);
+        width: 18px;
+        height: 18px;
+      }
+
+      .valeur-filtre {
+        font-size: 0.85rem;
+        color: var(--vert-principal);
+        font-weight: 600;
+        margin-top: 4px;
+      }
+
+      /* ---- LISTE TRAJETS ---- */
+      .resultats h3 {
+        font-size: 1rem;
+        color: var(--gris-texte);
+        margin-bottom: 20px;
+        font-family: var(--font-corps);
+        font-weight: 500;
+      }
+
+      .resultats h3 strong {
+        color: var(--noir-doux);
+      }
+
+      .carte-trajet {
+        margin-bottom: 16px;
+      }
+
+      .trajet-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .trajet-route {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--noir-doux);
+      }
+
+      .trajet-route span {
+        color: var(--gris-texte);
+        font-size: 0.9rem;
+        font-weight: 400;
+      }
+
+      .trajet-prix {
+        font-family: var(--font-titre);
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--vert-principal);
+      }
+
+      .trajet-prix small {
+        font-family: var(--font-corps);
+        font-size: 0.75rem;
+        color: var(--gris-texte);
+        display: block;
+        font-weight: 400;
+        text-align: right;
+      }
+
+      .trajet-infos {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 0.88rem;
+        color: var(--gris-texte);
+        margin-bottom: 16px;
+      }
+
+      .trajet-info-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .trajet-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16px;
+        border-top: 1px solid var(--gris-bordure);
+      }
+
+      .chauffeur-mini {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .avatar-mini {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--vert-pale);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--vert-principal);
+        font-size: 1rem;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .avatar-mini img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .chauffeur-nom {
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+
+      /* Zone vide / chargement */
+      .zone-vide {
+        text-align: center;
+        padding: 80px 40px;
+        color: var(--gris-texte);
+      }
+
+      .zone-vide .icone {
+        font-size: 3rem;
+        margin-bottom: 16px;
+      }
+      .zone-vide h3 {
+        color: var(--noir-doux);
+        margin-bottom: 8px;
+      }
+
+      .zone-chargement {
+        display: flex;
+        justify-content: center;
+        padding: 60px;
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .contenu-principal {
+          grid-template-columns: 1fr;
+        }
+        .filtres {
+          position: static;
+        }
+        .barre-recherche {
+          padding: 24px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAVIGATION -->
+    <nav class="navbar" id="navbar">
+      <a href="index.html" class="logo"><span></span> EcoRide</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Accueil</a></li>
+        <li>
+          <a href="covoiturages.html" style="color: var(--vert-principal)"
+            >Covoiturages</a
+          >
+        </li>
+        <li><a href="index.html#contact">Contact</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div id="nav-invite">
+          <a href="connexion.html" class="btn btn-contour">Connexion</a>
+        </div>
+        <div id="nav-connecte" class="hidden">
+          <a href="profil.html" class="btn btn-vert" id="nav-pseudo"
+            >Mon espace</a
+          >
+        </div>
+      </div>
+      <div class="burger" id="burger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+      </div>
+    </nav>
+
+    <div class="page-cov">
+      <!-- BARRE DE RECHERCHE -->
+      <div class="barre-recherche">
+        <h2>🔍 Trouver un covoiturage</h2>
+        <div class="form-recherche">
+          <div class="champ-groupe">
+            <label>Départ</label>
+            <input
+              type="text"
+              id="input-depart"
+              placeholder="Ville de départ"
+            />
+          </div>
+          <div class="champ-groupe">
+            <label>Arrivée</label>
+            <input
+              type="text"
+              id="input-arrivee"
+              placeholder="Ville d'arrivée"
+            />
+          </div>
+          <div class="champ-groupe">
+            <label>Date</label>
+            <input type="date" id="input-date" />
+          </div>
+          <button
+            class="btn btn-blanc"
+            onclick="lancerRecherche()"
+            style="white-space: nowrap"
+          >
+            Rechercher
+          </button>
+        </div>
+      </div>
+
+      <!-- CONTENU PRINCIPAL -->
+      <div class="contenu-principal">
+        <!-- ---- FILTRES ---- -->
+        <aside class="filtres">
+          <h3>⚙️ Filtres</h3>
+
+          <div class="filtre-section">
+            <label class="toggle-eco">
+              <input
+                type="checkbox"
+                id="filtre-eco"
+                onchange="filtrerTrajets()"
+              />
+              🌱 Voyages écologiques uniquement
+            </label>
+          </div>
+
+          <div class="filtre-section">
+            <label>Prix maximum</label>
+            <input
+              type="range"
+              id="filtre-prix"
+              min="1"
+              max="100"
+              value="100"
+              oninput="majFiltrePrix(this.value)"
+            />
+            <div class="valeur-filtre" id="label-prix">Jusqu'à 100 crédits</div>
+          </div>
+
+          <div class="filtre-section">
+            <label>Durée maximum (minutes)</label>
+            <input
+              type="number"
+              id="filtre-duree"
+              placeholder="Ex : 180"
+              oninput="filtrerTrajets()"
+              min="1"
+            />
+          </div>
+
+          <div class="filtre-section">
+            <label>Note minimum du chauffeur</label>
+            <select id="filtre-note" onchange="filtrerTrajets()">
+              <option value="0">Toutes les notes</option>
+              <option value="3">⭐⭐⭐ 3 et plus</option>
+              <option value="4">⭐⭐⭐⭐ 4 et plus</option>
+              <option value="4.5">⭐⭐⭐⭐⭐ 4.5 et plus</option>
+            </select>
+          </div>
+
+          <button
+            class="btn btn-contour"
+            style="width: 100%; justify-content: center; margin-top: 8px"
+            onclick="reinitialiserFiltres()"
+          >
+            Réinitialiser les filtres
+          </button>
+        </aside>
+
+        <!-- ---- RESULTATS ---- -->
+        <section class="resultats">
+          <div id="titre-resultats">
+            <h3>Remplis le formulaire pour trouver un trajet.</h3>
+          </div>
+          <div id="liste-trajets"></div>
+        </section>
+      </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+      let tousLesTrajets = []; // stocke les résultats bruts pour les filtres
+
+      // ---- Date minimum ----
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("input-date").min = today;
+
+      // ---- Récupérer les paramètres URL (depuis la page d'accueil) ----
+      function getParams() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          depart: params.get("depart") || "",
+          arrivee: params.get("arrivee") || "",
+          date: params.get("date") || today,
+        };
+      }
+
+      // ---- Pré-remplir les champs depuis l'URL ----
+      window.addEventListener("DOMContentLoaded", () => {
+        const { depart, arrivee, date } = getParams();
+        document.getElementById("input-depart").value = depart;
+        document.getElementById("input-arrivee").value = arrivee;
+        document.getElementById("input-date").value = date;
+
+        // Lancer la recherche automatiquement si on vient de l'accueil
+        if (depart && arrivee && date) lancerRecherche();
+      });
+
+      // ---- Recherche ----
+      async function lancerRecherche() {
+        const depart = document.getElementById("input-depart").value.trim();
+        const arrivee = document.getElementById("input-arrivee").value.trim();
+        const date = document.getElementById("input-date").value;
+
+        if (!depart || !arrivee || !date) {
+          afficherErreur("Merci de remplir tous les champs.");
+          return;
+        }
+
+        // Afficher le loader
+        document.getElementById("liste-trajets").innerHTML = `
+                  <div class="zone-chargement"><div class="loader"></div></div>`;
+        document.getElementById("titre-resultats").innerHTML = "";
+
+        try {
+          const reponse = await fetch(
+            `${API}/covoiturages?depart=${encodeURIComponent(
+              depart
+            )}&arrivee=${encodeURIComponent(arrivee)}&date=${date}`
+          );
+          const data = await reponse.json();
+
+          tousLesTrajets = data.trajets || [];
+
+          if (tousLesTrajets.length === 0) {
+            // Aucun résultat
+            let msg = `<div class="zone-vide">
+                          <div class="icone">🔍</div>
+                          <h3>Aucun trajet disponible</h3>
+                          <p>Aucun covoiturage trouvé pour ce trajet à cette date.</p>`;
+
+            if (data.prochain_dispo) {
+              msg += `<div class="alerte alerte-info" style="margin-top:20px;display:inline-block">
+                              📅 Prochain trajet disponible le <strong>${formatDate(
+                                data.prochain_dispo
+                              )}</strong>
+                              <br><button class="btn btn-vert" style="margin-top:12px"
+                                  onclick="changerDate('${
+                                    data.prochain_dispo
+                                  }')">
+                                  Voir ce trajet
+                              </button>
+                          </div>`;
+            }
+
+            msg += "</div>";
+            document.getElementById("liste-trajets").innerHTML = msg;
+            document.getElementById(
+              "titre-resultats"
+            ).innerHTML = `<h3>Aucun résultat pour <strong>${depart} → ${arrivee}</strong></h3>`;
+          } else {
+            document.getElementById(
+              "titre-resultats"
+            ).innerHTML = `<h3><strong>${tousLesTrajets.length} trajet(s)</strong> trouvé(s) · ${depart} → ${arrivee}</h3>`;
+            filtrerTrajets(); // applique les filtres et affiche
+          }
+        } catch (err) {
+          console.error("Erreur recherche covoiturages :", err);
+          afficherErreur("Erreur pendant l'affichage des trajets.");
+        }
+      }
+
+      // ---- Afficher les trajets filtrés ----
+      function filtrerTrajets() {
+        const eco = document.getElementById("filtre-eco").checked;
+        const prix = parseInt(document.getElementById("filtre-prix").value);
+        const duree =
+          parseInt(document.getElementById("filtre-duree").value) || Infinity;
+        const note =
+          parseFloat(document.getElementById("filtre-note").value) || 0;
+
+        const filtres = tousLesTrajets.filter((t) => {
+          if (eco && !t.est_ecologique) return false;
+          if (t.prix_par_personne > prix) return false;
+          if (t.duree_minutes && t.duree_minutes > duree) return false;
+          if (note > 0 && (!t.note_chauffeur || t.note_chauffeur < note))
+            return false;
+          return true;
+        });
+
+        if (filtres.length === 0) {
+          document.getElementById("liste-trajets").innerHTML = `
+                      <div class="zone-vide">
+                          <div class="icone">🎛️</div>
+                          <h3>Aucun trajet avec ces filtres</h3>
+                          <p>Essaie d'assouplir tes critères.</p>
+                      </div>`;
+        } else {
+          document.getElementById("liste-trajets").innerHTML = filtres
+            .map((t) => carteTrajetHTML(t))
+            .join("");
+        }
+      }
+
+      // ---- Générer le HTML d'une carte trajet ----
+      function carteTrajetHTML(t) {
+        const chauffeur = t.chauffeur || {};
+        const initiale = (chauffeur.pseudo || "?")[0].toUpperCase();
+        const note = t.note_chauffeur ? `⭐ ${t.note_chauffeur}` : "⭐ Nouveau";
+        const eco = t.est_ecologique
+          ? `<span class="badge-eco">🌱 Écologique</span>`
+          : "";
+
+        const photo = chauffeur.photo
+          ? `<img src="${chauffeur.photo}" alt="${chauffeur.pseudo}" />`
+          : initiale;
+
+        return `
+             <div class="carte-trajet">
+            <h3>${t.ville_depart} → ${t.ville_arrivee}</h3>
+
+            <p><strong>Date :</strong> ${t.date_depart}</p>
+            <p><strong>Heure :</strong> ${t.heure_depart}</p>
+            <p><strong>Prix :</strong> ${t.prix_par_personne} crédits</p>
+            <p><strong>Places restantes :</strong> ${t.nb_places_restantes}</p>
+            <p><strong>Écologique :</strong> ${
+              t.est_ecologique ? "Oui 🌱" : "Non"
+            }</p>
+
+            <a href="detail.html?id=${t.covoiturage_id}" class="btn btn-vert">
+              Voir détail
+            </a>
+          </div>
+          <a href="detail.html?id=${t.covoiturage_id}" class="btn btn-vert">
+  Voir le détail
+</a>
+        
+
+                  <div class="trajet-infos">
+                      <div class="trajet-info-item">📅 ${formatDate(
+                        t.date_depart
+                      )}</div>
+                      <div class="trajet-info-item">🕐 ${
+                        t.heure_depart?.slice(0, 5) || "--"
+                      }</div>
+                      <div class="trajet-info-item">👥 ${
+                        t.nb_places_restantes
+                      } place(s) dispo</div>
+                      ${
+                        t.duree_minutes
+                          ? `<div class="trajet-info-item">⏱ ${t.duree_minutes} min</div>`
+                          : ""
+                      }
+                      ${eco}
+                  </div>
+
+                  <div class="trajet-footer">
+                      <div class="chauffeur-mini">
+                          <div class="avatar-mini">${photo}</div>
+                          <div>
+                              <div class="chauffeur-nom">${
+                                chauffeur.pseudo || "Chauffeur"
+                              }</div>
+                              <div class="note-etoiles" style="font-size:0.8rem">${note}</div>
+                          </div>
+                      </div>
+                      <a href="detail.html?id=${
+                        t.covoiturage_id
+                      }" class="btn btn-vert"
+                          style="padding:10px 20px; font-size:0.88rem">
+                          Voir le détail
+                      </a>
+                  </div>
+              </div>`;
+      }
+
+      // ---- Utilitaires ----
+      function formatDate(dateStr) {
+        if (!dateStr) return "";
+        return new Date(dateStr).toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      }
+
+      function majFiltrePrix(val) {
+        document.getElementById(
+          "label-prix"
+        ).textContent = `Jusqu'à ${val} crédits`;
+        filtrerTrajets();
+      }
+
+      function reinitialiserFiltres() {
+        document.getElementById("filtre-eco").checked = false;
+        document.getElementById("filtre-prix").value = 100;
+        document.getElementById("filtre-duree").value = "";
+        document.getElementById("filtre-note").value = "0";
+        document.getElementById("label-prix").textContent =
+          "Jusqu'à 100 crédits";
+        filtrerTrajets();
+      }
+
+      function changerDate(date) {
+        document.getElementById("input-date").value = date;
+        lancerRecherche();
+      }
+
+      function afficherErreur(msg) {
+        document.getElementById(
+          "liste-trajets"
+        ).innerHTML = `<div class="alerte alerte-erreur">${msg}</div>`;
+      }
+
+      function toggleMenu() {
+        document.getElementById("navLinks").classList.toggle("open");
+      }
+    </script>
+  </body>
+</html>

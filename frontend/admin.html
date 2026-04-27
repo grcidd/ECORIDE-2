@@ -427,11 +427,11 @@
 
     <script src="js/auth.js"></script>
     <script>
-      const API = "http://localhost:3000/api";
-
-      // Protection : admin uniquement
       const user = getUser();
-      if (!user || user.role_id !== 3) window.location.href = "connexion.html";
+
+      if (!user || user.role_id !== 3) {
+        window.location.href = "connexion.html";
+      }
 
       let chartTrajets = null;
       let chartCredits = null;
@@ -442,17 +442,22 @@
       });
 
       function afficherOnglet(nom, btn) {
-        document
-          .querySelectorAll(".panneau-admin")
-          .forEach((p) => p.classList.remove("actif"));
-        document
-          .querySelectorAll(".onglet-admin")
-          .forEach((b) => b.classList.remove("actif"));
+        document.querySelectorAll(".panneau-admin").forEach((p) => {
+          p.classList.remove("actif");
+        });
+
+        document.querySelectorAll(".onglet-admin").forEach((b) => {
+          b.classList.remove("actif");
+        });
+
         document.getElementById(`panneau-${nom}`).classList.add("actif");
         btn.classList.add("actif");
+
+        if (nom === "utilisateurs" || nom === "employes") {
+          chargerUtilisateurs();
+        }
       }
 
-      // ---- Charger les stats et graphiques ----
       async function chargerStats() {
         try {
           const rep = await apiProtegee("/admin/stats");
@@ -460,209 +465,212 @@
 
           document.getElementById("stat-credits").textContent =
             data.totalCredits || 0;
+          document.getElementById("stat-trajets").textContent =
+            data.totalTrajets || 0;
+          document.getElementById("stat-users").textContent =
+            data.totalUsers || 0;
+          document.getElementById("stat-eco").textContent = data.totalEco || 0;
 
           const trajets = data.trajetsParJour || [];
-          document.getElementById("stat-trajets").textContent = trajets.reduce(
-            (s, t) => s + t.count,
-            0
-          );
-
-          // Graphique trajets
-          const ctxT = document
-            .getElementById("graphique-trajets")
-            .getContext("2d");
-          if (chartTrajets) chartTrajets.destroy();
-          chartTrajets = new Chart(ctxT, {
-            type: "bar",
-            data: {
-              labels: trajets.map((t) => formatDateCourt(t.date)),
-              datasets: [
-                {
-                  label: "Covoiturages",
-                  data: trajets.map((t) => t.count),
-                  backgroundColor: "rgba(82, 183, 136, 0.6)",
-                  borderColor: "#2D6A4F",
-                  borderWidth: 2,
-                  borderRadius: 6,
-                },
-              ],
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-            },
-          });
-
-          // Graphique crédits
           const credits = data.creditsParJour || [];
-          const ctxC = document
-            .getElementById("graphique-credits")
-            .getContext("2d");
-          if (chartCredits) chartCredits.destroy();
-          chartCredits = new Chart(ctxC, {
-            type: "line",
-            data: {
-              labels: credits.map((c) => formatDateCourt(c.date)),
-              datasets: [
-                {
-                  label: "Crédits",
-                  data: credits.map((c) => c.credits),
-                  borderColor: "#1B4332",
-                  backgroundColor: "rgba(27, 67, 50, 0.08)",
-                  borderWidth: 2,
-                  fill: true,
-                  tension: 0.4,
-                  pointBackgroundColor: "#1B4332",
-                },
-              ],
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { y: { beginAtZero: true } },
-            },
-          });
+
+          const ctxT = document.getElementById("graphique-trajets");
+          if (ctxT) {
+            if (chartTrajets) chartTrajets.destroy();
+            chartTrajets = new Chart(ctxT, {
+              type: "bar",
+              data: {
+                labels: trajets.map((t) => formatDateCourt(t.date)),
+                datasets: [
+                  {
+                    label: "Covoiturages",
+                    data: trajets.map((t) => t.count),
+                    backgroundColor: "rgba(82, 183, 136, 0.6)",
+                    borderColor: "#2D6A4F",
+                    borderWidth: 2,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
+              },
+            });
+          }
+
+          const ctxC = document.getElementById("graphique-credits");
+          if (ctxC) {
+            if (chartCredits) chartCredits.destroy();
+            chartCredits = new Chart(ctxC, {
+              type: "line",
+              data: {
+                labels: credits.map((c) => formatDateCourt(c.date)),
+                datasets: [
+                  {
+                    label: "Crédits",
+                    data: credits.map((c) => c.credits),
+                    borderColor: "#1B4332",
+                    backgroundColor: "rgba(27, 67, 50, 0.08)",
+                    borderWidth: 2,
+                    fill: true,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } },
+              },
+            });
+          }
         } catch (err) {
           console.error("Erreur stats :", err);
         }
       }
 
-      // ---- Charger tous les utilisateurs ----
       async function chargerUtilisateurs() {
         try {
-          const rep = await apiProtegee("/utilisateurs");
+          const rep = await apiProtegee("/admin/utilisateurs");
           const data = await rep.json();
-          const users = data.users || [];
 
-          document.getElementById("stat-users").textContent = users.length;
+          const users = Array.isArray(data) ? data : data.users || [];
 
-          const roles = { 1: "Utilisateur", 2: "Employé", 3: "Admin" };
+          const roles = {
+            1: "Utilisateur",
+            2: "Employé",
+            3: "Administrateur",
+          };
 
-          // Séparer utilisateurs et employés
           const utilisateurs = users.filter((u) => u.role_id === 1);
           const employes = users.filter((u) => u.role_id === 2);
 
-          document.getElementById("stat-eco").textContent = "—";
+          document.getElementById("tbody-users").innerHTML =
+            utilisateurs.length === 0
+              ? `<tr><td colspan="6" style="text-align:center;padding:24px">Aucun utilisateur.</td></tr>`
+              : utilisateurs
+                  .map(
+                    (u) => `
+              <tr>
+                <td><strong>${u.pseudo || "—"}</strong></td>
+                <td>${u.email || "—"}</td>
+                <td><span class="role-chip role-${u.role_id}">${
+                      roles[u.role_id] || "?"
+                    }</span></td>
+                <td>${u.credits ?? 0} cr.</td>
+                <td>
+                  ${
+                    u.est_suspendu
+                      ? `<span class="suspendu-chip">Suspendu</span>`
+                      : `<span style="color:var(--vert-principal);font-weight:600">Actif</span>`
+                  }
+                </td>
+                <td>
+                  <button class="btn ${
+                    u.est_suspendu ? "btn-vert" : "btn-contour"
+                  }"
+                    style="padding:6px 14px;font-size:0.8rem"
+                    onclick="toggleSuspendre(${u.user_id}, ${u.est_suspendu})">
+                    ${u.est_suspendu ? "Réactiver" : "Suspendre"}
+                  </button>
+                </td>
+              </tr>
+            `
+                  )
+                  .join("");
 
-          // Table utilisateurs
-          document.getElementById("tbody-users").innerHTML = utilisateurs
-            .map(
-              (u) => `
-                <tr id="user-row-${u.user_id}">
-                    <td><strong>${u.pseudo}</strong></td>
-                    <td>${u.email}</td>
-                    <td><span class="role-chip role-${u.role_id}">${
-                roles[u.role_id] || "?"
-              }</span></td>
-                    <td>${u.credits} cr.</td>
-                    <td>${
-                      u.est_suspendu
-                        ? '<span class="suspendu-chip">Suspendu</span>'
-                        : '<span style="color:var(--vert-principal); font-size:0.82rem; font-weight:600">Actif</span>'
-                    }</td>
-                    <td>
-                        <button class="btn ${
-                          u.est_suspendu ? "btn-vert" : "btn-contour"
-                        }"
-                            style="padding:6px 14px; font-size:0.8rem"
-                            onclick="toggleSuspendre(${u.user_id}, ${
-                u.est_suspendu
-              })">
-                            ${u.est_suspendu ? "✅ Réactiver" : "🚫 Suspendre"}
-                        </button>
-                    </td>
-                </tr>`
-            )
-            .join("");
-
-          // Table employés
           document.getElementById("tbody-employes").innerHTML =
             employes.length === 0
-              ? '<tr><td colspan="4" style="text-align:center; color:var(--gris-texte); padding:20px">Aucun employé</td></tr>'
+              ? `<tr><td colspan="4" style="text-align:center;padding:24px">Aucun employé.</td></tr>`
               : employes
                   .map(
                     (u) => `
-                <tr>
-                    <td><strong>${u.pseudo}</strong></td>
-                    <td>${u.email}</td>
-                    <td>${
-                      u.est_suspendu
-                        ? '<span class="suspendu-chip">Suspendu</span>'
-                        : '<span style="color:var(--vert-principal); font-size:0.82rem; font-weight:600">Actif</span>'
-                    }</td>
-                    <td>
-                        <button class="btn ${
-                          u.est_suspendu ? "btn-vert" : "btn-contour"
-                        }"
-                            style="padding:6px 14px; font-size:0.8rem"
-                            onclick="toggleSuspendre(${u.user_id}, ${
-                      u.est_suspendu
-                    })">
-                            ${u.est_suspendu ? "✅ Réactiver" : "🚫 Suspendre"}
-                        </button>
-                    </td>
-                </tr>`
+              <tr>
+                <td><strong>${u.pseudo || "—"}</strong></td>
+                <td>${u.email || "—"}</td>
+                <td>
+                  ${
+                    u.est_suspendu
+                      ? `<span class="suspendu-chip">Suspendu</span>`
+                      : `<span style="color:var(--vert-principal);font-weight:600">Actif</span>`
+                  }
+                </td>
+                <td>
+                  <button class="btn ${
+                    u.est_suspendu ? "btn-vert" : "btn-contour"
+                  }"
+                    style="padding:6px 14px;font-size:0.8rem"
+                    onclick="toggleSuspendre(${u.user_id}, ${u.est_suspendu})">
+                    ${u.est_suspendu ? "Réactiver" : "Suspendre"}
+                  </button>
+                </td>
+              </tr>
+            `
                   )
                   .join("");
         } catch (err) {
           console.error("Erreur utilisateurs :", err);
+          document.getElementById(
+            "tbody-users"
+          ).innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;padding:24px">Erreur chargement utilisateurs.</td></tr>`;
         }
       }
 
-      // ---- Suspendre / réactiver ----
       async function toggleSuspendre(id, estSuspendu) {
         const action = !estSuspendu;
-        const conf = confirm(
-          `${action ? "Suspendre" : "Réactiver"} ce compte ?`
-        );
-        if (!conf) return;
 
         try {
-          const rep = await apiProtegee(`/utilisateurs/${id}/suspendre`, {
+          const rep = await apiProtegee(`/admin/utilisateurs/${id}/suspendre`, {
             method: "PATCH",
             body: JSON.stringify({ suspendre: action }),
           });
+
           const data = await rep.json();
-          alert(data.message);
+          alert(data.message || "Action effectuée.");
           chargerUtilisateurs();
-        } catch {
+        } catch (err) {
+          console.error(err);
           alert("Erreur serveur.");
         }
       }
 
-      // ---- Créer un employé ----
       async function creerEmploye() {
         const pseudo = document.getElementById("emp-pseudo").value.trim();
         const email = document.getElementById("emp-email").value.trim();
         const password = document.getElementById("emp-password").value;
 
         if (!pseudo || !email || !password) {
-          document.getElementById("msg-employe").innerHTML =
-            '<div class="alerte alerte-erreur">Tous les champs sont requis.</div>';
+          document.getElementById(
+            "msg-employe"
+          ).innerHTML = `<div class="alerte alerte-erreur">Tous les champs sont requis.</div>`;
           return;
         }
 
         try {
-          const rep = await apiProtegee("/utilisateurs/employe", {
+          const rep = await apiProtegee("/admin/employes", {
             method: "POST",
             body: JSON.stringify({ pseudo, email, password }),
           });
+
           const data = await rep.json();
+
           document.getElementById(
             "msg-employe"
           ).innerHTML = `<div class="alerte alerte-${
             rep.ok ? "succes" : "erreur"
-          }">${data.message}</div>`;
+          }">${data.message || "Compte créé."}</div>`;
+
           if (rep.ok) {
             document.getElementById("emp-pseudo").value = "";
             document.getElementById("emp-email").value = "";
             document.getElementById("emp-password").value = "";
             chargerUtilisateurs();
           }
-        } catch {
-          document.getElementById("msg-employe").innerHTML =
-            '<div class="alerte alerte-erreur">Erreur serveur.</div>';
+        } catch (err) {
+          console.error(err);
+          document.getElementById(
+            "msg-employe"
+          ).innerHTML = `<div class="alerte alerte-erreur">Erreur serveur.</div>`;
         }
       }
 

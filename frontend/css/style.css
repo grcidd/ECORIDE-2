@@ -386,3 +386,89 @@
        .form-recherche { flex-direction: column; }
        .champ-groupe { min-width: 100%; }
    }
+   /* --- Modale avis --- */
+.modale-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modale-contenu {
+    background: white;
+    border-radius: var(--radius);
+    padding: 36px;
+    max-width: 460px;
+    width: 90%;
+    position: relative;
+    box-shadow: var(--ombre-forte);
+  }
+  
+  .modale-contenu h3 {
+    margin-bottom: 8px;
+  }
+  
+  .modale-fermer {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--gris-texte);
+  }
+  
+  .etoiles {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .etoile {
+    font-size: 2rem;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  
+  .etoile:hover {
+    transform: scale(1.2);
+  }
+  
+  /* --- Cards historique --- */
+  .card-historique {
+    background: white;
+    border-radius: var(--radius-petit);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: var(--ombre);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .card-historique__trajet {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .card-historique__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  
+  .statut { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+  .statut--termine  { color: var(--vert-principal); }
+  .statut--planifie { color: var(--warning); }
+  .statut--en_cours { color: #3A86FF; }
+  .statut--annule   { color: var(--erreur); }
+  
+  .btn--petit { padding: 8px 14px; font-size: 0.85rem; }

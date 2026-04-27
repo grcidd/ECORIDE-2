@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth.routes.js";
 import covoituragesRoutes from "./routes/covoiturages.routes.js";
 import utilisateursRoutes from "./routes/utilisateurs.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import avisRoutes from "./routes/avis.routes.js";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ const PORT = process.env.PORT || 3000;
 // ---- Middlewares globaux ----
 app.use(cors());
 app.use(express.json());
+app.use("/api/avis", avisRoutes);
 
 // ---- Connexion MongoDB ----
 connectMongo();

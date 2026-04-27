@@ -3,7 +3,7 @@
 // Ce fichier est inclus sur toutes les pages
 // ============================================
 
-const API = "https://ecoride-2-5vty.onrender.com";
+const API = "https://ecoride-2-5vty.onrender.com/api";
 
 // ---- Sauvegarde de la session après connexion ----
 function sauvegarderSession(token, user) {

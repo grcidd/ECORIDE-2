@@ -566,3 +566,95 @@
         align-items: stretch;
     }
 }
+
+/* ============================================
+   US 5 — Page de détail d'un covoiturage
+   ============================================ */
+
+/* Une "carte blanche" par thème : le trajet, le véhicule,
+   les préférences, les avis */
+.bloc-detail {
+    background: white;
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--ombre);
+    border: 1px solid var(--gris-bordure);
+    margin-top: 20px;
+}
+
+.bloc-detail h2 {
+    font-family: var(--font-titre);
+    font-size: 1.15rem;
+    color: var(--vert-fonce);
+    margin-bottom: 14px;
+}
+
+/* Une ligne "Marque : Tesla" */
+.ligne-info {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gris-bordure);
+}
+
+.ligne-info:last-child { border-bottom: none; }
+
+.ligne-info .etiquette { color: var(--gris-texte); }
+.ligne-info .valeur    { font-weight: 600; text-align: right; }
+
+/* Les préférences, affichées en pastilles */
+.liste-preferences {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pastille-preference {
+    padding: 6px 12px;
+    background: var(--vert-pale);
+    color: var(--vert-fonce);
+    border-radius: 100px;
+    font-size: 0.85rem;
+}
+
+/* Une pastille rouge pour les interdictions (non-fumeur...) */
+.pastille-preference.refus {
+    background: #FDECEA;
+    color: #B3261E;
+}
+
+/* Un avis */
+.carte-avis {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--gris-bordure);
+}
+
+.carte-avis:last-child { border-bottom: none; }
+
+.carte-avis .entete {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.carte-avis .auteur { font-weight: 600; }
+.carte-avis .date   { color: var(--gris-texte); font-size: 0.82rem; }
+.carte-avis .texte  { color: var(--gris-texte); }
+
+/* Le prix, bien visible, au-dessus du bouton */
+.prix-detail {
+    font-family: var(--font-titre);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--vert-principal);
+}
+
+.prix-detail span {
+    font-family: var(--font-corps);
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--gris-texte);
+}

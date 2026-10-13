@@ -89,13 +89,16 @@ export const getDetail = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // On ne demande QUE les colonnes nécessaires pour les tables liées.
+    // La plaque d'immatriculation est une donnée personnelle : elle n'a
+    // aucune raison d'être envoyée au navigateur de la passagère.
     const { data: trajet, error } = await supabase
       .from("covoiturages")
       .select(
         `
                 *,
                 chauffeur:users(pseudo, photo),
-                vehicule:vehicules(marque, modele, couleur, energie, immatriculation)
+                vehicule:vehicules(marque, modele, couleur, energie)
             `
       )
       .eq("covoiturage_id", id)
@@ -113,12 +116,23 @@ export const getDetail = async (req, res) => {
       .eq("statut", "valide")
       .order("created_at", { ascending: false });
 
-    // Préférences du chauffeur
+    // Préférences du chauffeur : fumeur / animaux
+    // maybeSingle() car un chauffeur peut très bien n'avoir rien renseigné :
+    // avec single(), ce cas normal déclenchait une erreur.
     const { data: preferences } = await supabase
       .from("preferences")
       .select("*")
       .eq("user_id", trajet.chauffeur_id)
-      .single();
+      .maybeSingle();
+
+    // US 5 : les préférences personnalisées, écrites librement par le chauffeur
+    // (« Pas de nourriture dans la voiture », « Pause toutes les 2h »...).
+    // Elles vivent dans leur propre table : un chauffeur peut en avoir plusieurs.
+    const { data: preferencesPerso } = await supabase
+      .from("preferences_personnalisees")
+      .select("libelle")
+      .eq("user_id", trajet.chauffeur_id)
+      .order("preference_perso_id", { ascending: true });
 
     // Note moyenne
     const moyenne =
@@ -130,6 +144,7 @@ export const getDetail = async (req, res) => {
       trajet,
       avis: avis || [],
       preferences: preferences || null,
+      preferences_perso: preferencesPerso || [],
       note_moyenne: moyenne,
     });
   } catch (error) {

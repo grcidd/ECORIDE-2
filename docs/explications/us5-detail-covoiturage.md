@@ -212,15 +212,34 @@ n'efface rien. Les trois zones concernées (avatar, préférences, avis) sont ma
 avant d'être remplies. Revérifié : après rechargement avec un trajet sans préférences,
 il reste bien 0 pastille.
 
-### Non vérifié en conditions réelles ⚠️
+### Avec le vrai serveur et la vraie base ✅
 
-Les modifications du **serveur** (préférences personnalisées ajoutées à la réponse, plaque
-d'immatriculation retirée, `maybeSingle` au lieu de `single`) n'ont **pas** pu être exercées
-par un vrai appel HTTP : pendant cette session, la synchronisation iCloud du dossier
-`Documents` monopolisait le disque et le serveur Node mettait plus de deux minutes à démarrer.
-L'affichage a donc été testé avec une réponse simulée ayant exactement la forme attendue.
-Le code serveur a été relu et sa syntaxe validée (`node --check`), mais **il reste à lancer
-une fois le serveur pour confirmer** — voir la section « Comment tester » ci-dessous.
+Les modifications du serveur ont bien été exercées par de vrais appels HTTP :
+
+| Vérification | Résultat |
+|---|---|
+| `GET /api/covoiturages/1` | ✅ HTTP 200 |
+| **Plaque d'immatriculation dans la réponse** | ✅ **absente** (retirée de la requête) |
+| Clé `preferences_perso` présente | ✅ |
+| Table `preferences_personnalisees` pas encore créée | ✅ renvoie `[]` **sans planter** |
+| Préférences d'un chauffeur qui en a | ✅ lues correctement |
+| **Préférences d'un chauffeur qui n'en a PAS** | ✅ HTTP 200 + `null` — c'est le correctif `maybeSingle()` : avec `single()`, ce cas normal déclenchait une erreur |
+| `GET /api/covoiturages/99999` | ✅ HTTP 404 « Trajet introuvable. » |
+| Page `detail.html?id=6` contre le vrai serveur | ✅ « Ce conducteur n'a pas indiqué de préférences. » |
+
+Et aucune régression sur ce qui existait déjà :
+
+| Vérification | Résultat |
+|---|---|
+| Recherche US 3 | ✅ 1 trajet, chauffeur, places, prix, heures de départ et d'arrivée |
+| Proposition de date US 3 | ✅ renvoie bien le 15 juillet |
+| Routes admin sans jeton | ✅ 401 sur les 3 |
+
+> **Note sur l'environnement** : pendant une partie de la session, la synchronisation iCloud
+> du dossier `Documents` saturait le disque — `require('express')` mettait **169 secondes**
+> au lieu de 72 millisecondes, et le serveur ne démarrait plus. Une fois la synchronisation
+> terminée, tout est redevenu normal et ces tests ont pu être faits. C'est la raison pour
+> laquelle il vaut mieux sortir le projet d'un dossier synchronisé.
 
 ---
 

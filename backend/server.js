@@ -7,6 +7,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectMongo from "./config/mongodb.js";
 
 import authRoutes from "./routes/auth.routes.js";
@@ -15,8 +17,13 @@ import utilisateursRoutes from "./routes/utilisateurs.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import avisRoutes from "./routes/avis.routes.js";
 
-// Charge les variables secrètes du fichier .env (clés, mots de passe)
-dotenv.config();
+// Charge les variables secrètes du fichier backend/.env (clés, mots de passe).
+// On donne le chemin EXACT : sinon dotenv cherche le .env dans le dossier
+// depuis lequel on lance la commande, et ne trouve rien si on lance
+// "node backend/server.js" depuis la racine du projet.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,10 +49,13 @@ app.use(
       if (!origin) return callback(null, true);
 
       if (originesAutorisees.includes(origin)) {
-        return callback(null, true);
+        return callback(null, true); // autorisé
       }
-      // Site inconnu → refusé
-      return callback(new Error("Origine non autorisée par CORS : " + origin));
+
+      // Site inconnu : on ne met pas l'en-tête d'autorisation.
+      // Résultat : c'est le NAVIGATEUR qui bloque la réponse côté visiteur.
+      // (false, et pas une erreur : ça évite de renvoyer un vilain 500)
+      return callback(null, false);
     },
   })
 );

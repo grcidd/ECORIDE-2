@@ -5,8 +5,13 @@
 
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+// Même précaution que dans supabase.js : on vise le fichier .env par son chemin exact.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const connectMongo = async () => {
   // Pas d'adresse configurée → on ne tente même pas, et on le dit clairement.

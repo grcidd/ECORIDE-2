@@ -286,9 +286,10 @@
       </div>
     </div>
 
+    <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
-      const API = "http://localhost:3000/api";
+      // L'adresse de l'API vient maintenant de js/api.js (plus de localhost en dur).
 
       // Protection : doit être employé (role_id 2) ou admin (role_id 3)
       const user = getUser();

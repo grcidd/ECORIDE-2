@@ -46,7 +46,9 @@ export const rechercher = async (req, res) => {
         .gt("nb_places_restantes", 0)
         .order("date_depart", { ascending: true })
         .limit(1)
-        .single();
+        // maybeSingle() = "0 ou 1 résultat, et 0 n'est pas une erreur".
+        // Avec single(), ne rien trouver déclenchait une erreur inutile.
+        .maybeSingle();
 
       return res.status(200).json({
         trajets: [],

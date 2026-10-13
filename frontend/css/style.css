@@ -472,3 +472,97 @@
   .statut--annule   { color: var(--erreur); }
   
   .btn--petit { padding: 8px 14px; font-size: 0.85rem; }
+/* ============================================
+   US 3 — Carte d'un covoiturage dans la liste
+   (classes qui manquaient : le JS les utilisait
+    déjà mais elles n'existaient pas ici)
+   ============================================ */
+
+/* Ligne du haut : avatar + pseudo + note du chauffeur */
+.chauffeur-nom {
+    font-weight: 600;
+    color: var(--noir-doux);
+}
+
+/* Titre du trajet : Lyon → Paris */
+.trajet-titre {
+    font-family: var(--font-titre);
+    font-size: 1.25rem;
+    color: var(--vert-fonce);
+    margin: 0;
+}
+
+/* Les petites infos (date, heures, places...) mises côte à côte */
+.trajet-infos {
+    display: flex;
+    flex-wrap: wrap;        /* passe à la ligne si l'écran est étroit */
+    gap: 10px;
+}
+
+.trajet-info-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--gris-fond);
+    border-radius: 100px;
+    font-size: 0.82rem;
+    color: var(--gris-texte);
+}
+
+/* Ligne du bas : prix à gauche, bouton à droite */
+.trajet-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--gris-bordure);
+    padding-top: 14px;
+}
+
+.trajet-prix {
+    font-family: var(--font-titre);
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--vert-principal);
+}
+
+.trajet-prix span {
+    font-family: var(--font-corps);
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--gris-texte);
+}
+
+/* Message quand il n'y a aucun résultat */
+.zone-vide {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--gris-texte);
+}
+
+.zone-vide .icone {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+}
+
+.zone-vide h3 {
+    font-family: var(--font-titre);
+    color: var(--vert-fonce);
+    margin-bottom: 6px;
+}
+
+/* Petite animation pendant le chargement */
+.zone-chargement {
+    display: flex;
+    justify-content: center;
+    padding: 48px 0;
+}
+
+/* Sur mobile : le pied de carte s'empile */
+@media (max-width: 480px) {
+    .trajet-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

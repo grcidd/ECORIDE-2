@@ -568,11 +568,22 @@
           parseFloat(document.getElementById("filtre-note").value) || 0;
 
         const filtres = tousLesTrajets.filter((t) => {
+          // Filtre 1 : uniquement les voitures électriques
           if (eco && !t.est_ecologique) return false;
+
+          // Filtre 2 : prix maximum
           if (t.prix_par_personne > prix) return false;
-          if (t.duree_minutes && t.duree_minutes > duree) return false;
+
+          // Filtre 3 : durée maximum, calculée avec l'heure d'arrivée
+          const dureeTrajet = calculerDureeMinutes(t);
+          if (dureeTrajet !== null && dureeTrajet > duree) return false;
+
+          // Filtre 4 : note minimum du chauffeur
+          // Un chauffeur sans aucun avis n'a pas de note : on l'écarte
+          // dès que la passagère demande une note minimum.
           if (note > 0 && (!t.note_chauffeur || t.note_chauffeur < note))
             return false;
+
           return true;
         });
 
@@ -621,6 +632,7 @@
           <div class="trajet-infos">
             <div class="trajet-info-item js-date"></div>
             <div class="trajet-info-item js-horaires"></div>
+            <div class="trajet-info-item js-duree"></div>
             <div class="trajet-info-item js-places"></div>
             <span class="badge-eco js-eco" hidden>🌱 Écologique</span>
           </div>
@@ -667,6 +679,14 @@
         dans("js-horaires").textContent =
           "🕐 " + formatHeure(t.heure_depart) + " → " + formatHeure(t.heure_arrivee);
 
+        // Durée du trajet (c'est elle que filtre l'US 4)
+        const duree = calculerDureeMinutes(t);
+        if (duree === null) {
+          dans("js-duree").hidden = true;
+        } else {
+          dans("js-duree").textContent = "⏱ " + formatDuree(duree);
+        }
+
         dans("js-places").textContent =
           "👥 " + t.nb_places_restantes + " place(s) restante(s)";
 
@@ -695,6 +715,40 @@
           month: "long",
           year: "numeric",
         });
+      }
+
+      // Transforme "08:00:00" en nombre de minutes depuis minuit (08:00 → 480)
+      function minutesDepuisMinuit(heure) {
+        const morceaux = heure.split(":");
+        return Number(morceaux[0]) * 60 + Number(morceaux[1]);
+      }
+
+      // Durée du trajet en minutes.
+      // US 4 : on la calcule avec l'heure d'arrivée, et pas seulement
+      // avec la colonne duree_minutes qui peut être vide.
+      function calculerDureeMinutes(t) {
+        if (t.heure_depart && t.heure_arrivee) {
+          const depart = minutesDepuisMinuit(t.heure_depart);
+          const arrivee = minutesDepuisMinuit(t.heure_arrivee);
+          let duree = arrivee - depart;
+          // Arrivée "avant" le départ = le trajet passe minuit : on ajoute 24 h.
+          if (duree < 0) duree = duree + 24 * 60;
+          return duree;
+        }
+        // Pas d'heure d'arrivée : on se rabat sur la durée enregistrée en base.
+        if (t.duree_minutes) return t.duree_minutes;
+        // Durée inconnue : on renvoie null, et le filtre laisse passer le trajet
+        // plutôt que de le cacher sans raison.
+        return null;
+      }
+
+      // Transforme 285 minutes en "4 h 45"
+      function formatDuree(minutes) {
+        if (minutes === null) return "";
+        const heures = Math.floor(minutes / 60);
+        const reste = minutes % 60;
+        if (heures === 0) return reste + " min";
+        return heures + " h " + String(reste).padStart(2, "0");
       }
 
       // Transforme "08:00:00" (format de la base) en "08:00" (lisible)

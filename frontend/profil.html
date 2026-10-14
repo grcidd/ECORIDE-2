@@ -524,19 +524,39 @@
                 </label>
               </div>
 
-              <div class="champ-groupe">
-                <label for="pref-perso">Préférences personnalisées</label>
-                <textarea
-                  id="pref-perso"
-                  rows="3"
-                  placeholder="Ex : musique calme, ponctualité appréciée..."
-                ></textarea>
-              </div>
-
               <button class="btn btn-vert" id="btn-save-prefs">
-                Sauvegarder les préférences
+                Sauvegarder fumeur / animaux
               </button>
               <div id="msg-prefs" class="alerte-zone"></div>
+
+              <!-- US 8 : préférences libres, autant qu'on veut.
+                   Chacune est une ligne de la table preferences_personnalisees,
+                   donc on peut en supprimer une sans toucher aux autres. -->
+              <div class="champ-groupe" style="margin-top: 24px">
+                <label for="pref-perso">Mes préférences personnalisées</label>
+                <p class="champ-indice">
+                  Ajoute ce que tu veux : elles s'afficheront sur tes trajets.
+                </p>
+
+                <div class="ligne-ajout">
+                  <input
+                    type="text"
+                    id="pref-perso"
+                    maxlength="100"
+                    placeholder="Ex : pause toutes les 2 heures"
+                  />
+                  <button class="btn btn-vert" id="btn-add-pref" type="button">
+                    Ajouter
+                  </button>
+                </div>
+
+                <div
+                  class="liste-preferences"
+                  id="liste-prefs-perso"
+                  style="margin-top: 12px"
+                ></div>
+                <div id="msg-prefs-perso" class="alerte-zone"></div>
+              </div>
             </div>
           </section>
 
@@ -866,11 +886,127 @@
         }
       }
 
+      // US 8 — On retient l'ancien texte libre (colonne preference_perso).
+      // Le formulaire ne le modifie plus : les nouvelles préférences vont
+      // dans la table dédiée. On le renvoie tel quel pour ne pas l'effacer.
+      let ancienTexteLibre = null;
+
+      // ---- Charger les préférences au chargement de la page ----
+      // Sans ça, les cases repartaient vides à chaque visite, même si on
+      // avait déjà enregistré quelque chose.
+      async function chargerPreferences() {
+        try {
+          const rep = await apiProtegee("/utilisateurs/preferences");
+          const data = await rep.json();
+
+          if (data.preferences) {
+            document.getElementById("pref-fumeur").checked =
+              data.preferences.accepte_fumeur;
+            document.getElementById("pref-animaux").checked =
+              data.preferences.accepte_animaux;
+            ancienTexteLibre = data.preferences.preference_perso;
+          }
+
+          afficherPrefsPerso(data.preferences_perso || []);
+        } catch {
+          afficherAlerte("msg-prefs", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Afficher la liste des préférences personnalisées ----
+      function afficherPrefsPerso(liste) {
+        const zone = document.getElementById("liste-prefs-perso");
+        zone.innerHTML = ""; // on vide avant de remplir
+
+        if (liste.length === 0) {
+          const vide = document.createElement("p");
+          vide.className = "aucune-preference";
+          vide.textContent = "Aucune préférence pour l'instant.";
+          zone.appendChild(vide);
+          return;
+        }
+
+        liste.forEach((pref) => {
+          const pastille = document.createElement("span");
+          pastille.className = "pastille-supprimable";
+
+          // textContent : le texte vient de la base, on ne le laisse
+          // jamais être interprété comme du HTML (protection XSS).
+          const texte = document.createElement("span");
+          texte.textContent = pref.libelle;
+
+          const croix = document.createElement("button");
+          croix.type = "button";
+          croix.textContent = "×";
+          croix.title = "Supprimer";
+          croix.addEventListener("click", () =>
+            supprimerPrefPerso(pref.preference_perso_id)
+          );
+
+          pastille.appendChild(texte);
+          pastille.appendChild(croix);
+          zone.appendChild(pastille);
+        });
+      }
+
+      // ---- Ajouter une préférence personnalisée ----
+      async function ajouterPrefPerso() {
+        const champ = document.getElementById("pref-perso");
+        const libelle = champ.value.trim();
+
+        if (!libelle) {
+          afficherAlerte("msg-prefs-perso", "erreur", "Écris ta préférence.");
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/utilisateurs/preferences-perso", {
+            method: "POST",
+            body: JSON.stringify({ libelle }),
+          });
+          const data = await rep.json();
+
+          afficherAlerte(
+            "msg-prefs-perso",
+            rep.ok ? "succes" : "erreur",
+            data.message
+          );
+
+          if (rep.ok) {
+            champ.value = "";       // on vide le champ
+            chargerPreferences();   // et on redessine la liste
+          }
+        } catch {
+          afficherAlerte("msg-prefs-perso", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Supprimer une préférence personnalisée ----
+      async function supprimerPrefPerso(id) {
+        try {
+          const rep = await apiProtegee(
+            "/utilisateurs/preferences-perso/" + id,
+            { method: "DELETE" }
+          );
+          const data = await rep.json();
+
+          if (rep.ok) {
+            chargerPreferences();
+          } else {
+            afficherAlerte("msg-prefs-perso", "erreur", data.message);
+          }
+        } catch {
+          afficherAlerte("msg-prefs-perso", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Sauvegarder fumeur / animaux ----
       async function sauvegarderPrefs() {
         const body = {
           accepte_fumeur: document.getElementById("pref-fumeur").checked,
           accepte_animaux: document.getElementById("pref-animaux").checked,
-          preference_perso: document.getElementById("pref-perso").value,
+          // On renvoie l'ancien texte libre inchangé, pour ne pas l'effacer.
+          preference_perso: ancienTexteLibre,
         };
 
         try {
@@ -1166,6 +1302,21 @@
         document
           .getElementById("btn-save-prefs")
           .addEventListener("click", sauvegarderPrefs);
+
+        // US 8 : ajouter une préférence personnalisée
+        document
+          .getElementById("btn-add-pref")
+          .addEventListener("click", ajouterPrefPerso);
+
+        // La touche Entrée dans le champ ajoute aussi la préférence
+        document
+          .getElementById("pref-perso")
+          .addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              ajouterPrefPerso();
+            }
+          });
         document
           .getElementById("btn-add-vehicule")
           .addEventListener("click", ajouterVehicule);
@@ -1177,6 +1328,7 @@
         marquerRoleActuel();
         chargerHistorique();
         chargerVehicules();
+        chargerPreferences(); // US 8 : on affiche ce qui est déjà enregistré
       });
     </script>
   </body>

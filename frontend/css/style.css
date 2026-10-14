@@ -712,3 +712,49 @@
     font-size: 0.86rem;
     color: var(--erreur);
 }
+
+/* ============================================
+   US 8 — Préférences personnalisées
+   ============================================ */
+
+/* La ligne "champ texte + bouton Ajouter" */
+.ligne-ajout {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.ligne-ajout input { flex: 1; }
+
+/* Une pastille avec sa croix de suppression */
+.pastille-supprimable {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 12px;
+    background: var(--vert-pale);
+    color: var(--vert-fonce);
+    border-radius: 100px;
+    font-size: 0.85rem;
+}
+
+.pastille-supprimable button {
+    border: none;
+    background: transparent;
+    color: var(--vert-fonce);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 50%;
+}
+
+.pastille-supprimable button:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+/* Message quand il n'y a encore aucune préférence */
+.aucune-preference {
+    font-size: 0.86rem;
+    color: var(--gris-texte);
+}

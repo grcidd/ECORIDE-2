@@ -562,6 +562,7 @@
 
           <section id="mes-trajets" class="section-profil">
             <h2 class="contenu-titre">Mes trajets</h2>
+            <div id="msg-historique" class="alerte-zone"></div>
 
             <div class="carte-blanche">
               <h3>🚗 En tant que chauffeur</h3>
@@ -785,9 +786,15 @@
         `;
       }
 
-      function trajetHistoriqueHTML(t, type, participation) {
-        if (!t) return "";
-        const statutClass = `statut-${t.statut || "planifie"}`;
+      // ---- Construire la ligne d'UN trajet dans l'historique ----
+      // On renvoie un vrai élément HTML et on remplit les données avec
+      // textContent : les villes sont saisies par les chauffeurs, on ne les
+      // laisse jamais être interprétées comme du HTML (protection XSS).
+      function creerLigneHistorique(t, type, participation) {
+        const ligne = document.createElement("div");
+        ligne.className = "trajet-historique";
+        if (!t) return ligne;
+
         const statutLabel = {
           planifie: "Planifié",
           en_cours: "En cours",
@@ -795,33 +802,163 @@
           annule: "Annulé",
         };
 
-        const actionsHTML =
-          type === "chauffeur" && t.statut === "planifie"
-            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="demarrerTrajet(${t.covoiturage_id})">▶ Démarrer</button>`
-            : type === "chauffeur" && t.statut === "en_cours"
-            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="terminerTrajet(${t.covoiturage_id})">🏁 Terminer</button>`
-            : "";
-
-        return `
-          <div class="trajet-historique">
-            <div>
-              <strong>${t.ville_depart || "—"} → ${
-          t.ville_arrivee || "—"
-        }</strong>
-              <div style="font-size:0.82rem; color:var(--gris-texte); margin-top:2px">
-                ${formatDate(t.date_depart)} · ${
-          t.prix_par_personne || 0
-        } crédits/pers
-              </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px">
-              <span class="statut-badge ${statutClass}">
-                ${statutLabel[t.statut] || t.statut}
-              </span>
-              ${actionsHTML}
-            </div>
+        // Le squelette, sans aucune donnée : écrit par moi, donc sûr.
+        ligne.innerHTML = `
+          <div>
+            <strong class="js-villes"></strong>
+            <div class="js-details" style="font-size:0.82rem;color:var(--gris-texte);margin-top:2px"></div>
           </div>
-        `;
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="statut-badge js-statut"></span>
+            <span class="js-actions" style="display:flex;gap:8px"></span>
+          </div>`;
+
+        const dans = (c) => ligne.querySelector("." + c);
+
+        dans("js-villes").textContent =
+          (t.ville_depart || "—") + " → " + (t.ville_arrivee || "—");
+        dans("js-details").textContent =
+          formatDate(t.date_depart) + " · " + (t.prix_par_personne || 0) +
+          " crédits/pers";
+
+        const badge = dans("js-statut");
+        badge.classList.add("statut-" + (t.statut || "planifie"));
+        badge.textContent = statutLabel[t.statut] || t.statut;
+
+        const actions = dans("js-actions");
+
+        // Petit raccourci pour fabriquer un bouton d'action
+        function bouton(texte, classe, action) {
+          const b = document.createElement("button");
+          b.className = "btn " + classe;
+          b.style.cssText = "padding:8px 14px;font-size:0.82rem";
+          b.textContent = texte;
+          b.addEventListener("click", action);
+          actions.appendChild(b);
+        }
+
+        // --- Côté CHAUFFEUR ---
+        if (type === "chauffeur") {
+          if (t.statut === "planifie") {
+            bouton("▶ Démarrer", "btn-vert", () =>
+              demarrerTrajet(t.covoiturage_id)
+            );
+            // US 10 : annuler son trajet (rembourse tous les passagers)
+            bouton("Annuler le trajet", "btn-danger", () =>
+              annulerTrajet(t.covoiturage_id, t.ville_depart, t.ville_arrivee)
+            );
+          } else if (t.statut === "en_cours") {
+            bouton("🏁 Terminer", "btn-vert", () =>
+              terminerTrajet(t.covoiturage_id)
+            );
+          }
+        }
+
+        // --- Côté PASSAGER ---
+        if (type === "passager" && participation) {
+          if (participation.statut === "annulee") {
+            // On le dit clairement, au lieu de laisser croire qu'elle participe
+            const note = document.createElement("span");
+            note.className = "statut-badge statut-annule";
+            note.textContent = "Réservation annulée";
+            actions.appendChild(note);
+          } else if (t.statut === "planifie") {
+            // US 10 : annuler sa réservation (remboursement + place libérée)
+            bouton("Annuler ma réservation", "btn-danger", () =>
+              annulerReservation(t.covoiturage_id)
+            );
+          }
+        }
+
+        return ligne;
+      }
+
+      // ---- US 10 : le passager annule sa réservation ----
+      async function annulerReservation(id) {
+        if (
+          !confirm(
+            "Annuler ta réservation ? Tes crédits te seront remboursés."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/covoiturages/" + id + "/participer", {
+            method: "DELETE",
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte(
+            "msg-historique",
+            "succes",
+            data.message + " (" + data.credits_rembourses + " crédits)"
+          );
+          rafraichirApresAnnulation(data.credits_rembourses);
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- US 10 : le chauffeur annule son trajet ----
+      async function annulerTrajet(id, depart, arrivee) {
+        if (
+          !confirm(
+            "Annuler le trajet " + depart + " → " + arrivee + " ?\n\n" +
+              "Tous les passagers seront remboursés et prévenus par mail. " +
+              "Cette action est définitive."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/covoiturages/" + id, {
+            method: "DELETE",
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte("msg-historique", "succes", data.message);
+
+          // En mode test, on affiche les liens pour LIRE les mails envoyés.
+          // Très pratique pour montrer les mails pendant la soutenance.
+          if (data.apercus_mails && data.apercus_mails.length > 0) {
+            const zone = document.getElementById("msg-historique");
+            data.apercus_mails.forEach((lien) => {
+              const a = document.createElement("a");
+              a.href = lien;
+              a.target = "_blank";
+              a.textContent = "📧 Voir le mail envoyé";
+              a.style.cssText = "display:block;margin-top:8px";
+              zone.appendChild(a);
+            });
+          }
+
+          chargerHistorique();
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // Après une annulation : on met à jour les crédits affichés et la liste
+      function rafraichirApresAnnulation(creditsRembourses) {
+        const u = getUser();
+        u.credits = u.credits + creditsRembourses;
+        localStorage.setItem("user", JSON.stringify(u));
+        document.getElementById("sidebar-credits").textContent =
+          "💳 " + u.credits + " crédits";
+        document.getElementById("db-credits").textContent = u.credits;
+        chargerHistorique();
       }
 
       function marquerRoleActuel() {
@@ -1057,17 +1194,21 @@
           } else {
             document.getElementById("db-trajets").textContent =
               data.chauffeur.length;
-            listeCh.innerHTML = data.chauffeur
-              .map((t) => trajetHistoriqueHTML(t, "chauffeur"))
-              .join("");
+            listeCh.innerHTML = "";
+            data.chauffeur.forEach((t) =>
+              listeCh.appendChild(creerLigneHistorique(t, "chauffeur"))
+            );
           }
 
           if (!data.passager || data.passager.length === 0) {
             listePa.innerHTML = `<p class="zone-vide">Aucune réservation.</p>`;
           } else {
-            listePa.innerHTML = data.passager
-              .map((p) => trajetHistoriqueHTML(p.covoiturage, "passager", p))
-              .join("");
+            listePa.innerHTML = "";
+            data.passager.forEach((p) =>
+              listePa.appendChild(
+                creerLigneHistorique(p.covoiturage, "passager", p)
+              )
+            );
           }
 
           const nbEco = (data.chauffeur || []).filter(

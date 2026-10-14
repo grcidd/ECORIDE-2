@@ -7,6 +7,8 @@ import {
   historique,
   demarrer,
   terminer,
+  annulerParticipation,
+  annulerTrajet,
 } from "../controllers/covoiturages.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 
@@ -20,6 +22,10 @@ router.get("/:id", getDetail); // détail d'un trajet
 // Routes protégées (faut être connecté)
 router.post("/", authMiddleware, creer); // créer un trajet
 router.post("/:id/participer", authMiddleware, participer); // réserver
+// US 10 : annulations
+router.delete("/:id/participer", authMiddleware, annulerParticipation); // le passager annule
+router.delete("/:id", authMiddleware, annulerTrajet);                   // le chauffeur annule
+
 router.patch("/:id/demarrer", authMiddleware, demarrer); // démarrer
 router.patch("/:id/terminer", authMiddleware, terminer); // terminer
 

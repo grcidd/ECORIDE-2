@@ -240,35 +240,27 @@ CREATE INDEX IF NOT EXISTS idx_avis_statut
 --
 -- Appelée depuis le serveur avec supabase.rpc("reserver_covoiturage", ...)
 -- ============================================
-
-CREATE OR REPLACE FUNCTION reserver_covoiturage(
+-- 1. ANNULER SA PARTICIPATION (passager)
+--
+--    - on rembourse exactement ce qui avait été débité
+--    - on libère la place
+--    - on garde la ligne, avec le statut 'annulee' (pour l'historique)
+-- ============================================
+CREATE OR REPLACE FUNCTION annuler_participation(
     p_covoiturage_id INTEGER,
     p_passager_id INTEGER
 )
 RETURNS JSON
 LANGUAGE plpgsql
--- SECURITY DEFINER : la fonction s'exécute avec les droits de son propriétaire.
--- Elle continuera donc de fonctionner même si on active la sécurité RLS
--- sur les tables plus tard.
 SECURITY DEFINER
--- On fige le chemin de recherche : sans ça, quelqu'un pourrait créer une
--- fausse table "users" dans un autre schéma pour détourner la fonction.
 SET search_path = public
 AS $$
 DECLARE
-    v_trajet   covoiturages%ROWTYPE;  -- une variable qui a la forme d'une ligne de covoiturages
-    v_credits  INTEGER;
-    v_existe   INTEGER;
+    v_participation participations%ROWTYPE;
+    v_trajet        covoiturages%ROWTYPE;
 BEGIN
-    -- ----------------------------------------
-    -- 1. On lit le trajet ET on le verrouille
-    -- ----------------------------------------
-    -- FOR UPDATE bloque la ligne jusqu'à la fin de la transaction.
-    -- Si deux passagères cliquent sur la dernière place au même instant,
-    -- la seconde attend que la première ait fini, puis voit qu'il n'y a
-    -- plus de place. Sans ce verrou, les deux passeraient.
-    SELECT * INTO v_trajet
-    FROM covoiturages
+    -- On verrouille le trajet : personne d'autre ne le modifie pendant ce temps
+    SELECT * INTO v_trajet FROM covoiturages
     WHERE covoiturage_id = p_covoiturage_id
     FOR UPDATE;
 
@@ -276,9 +268,165 @@ BEGIN
         RAISE EXCEPTION 'TRAJET_INTROUVABLE';
     END IF;
 
-    -- ----------------------------------------
-    -- 2. Les vérifications
-    -- ----------------------------------------
+    -- On ne peut plus annuler une fois le trajet commencé ou terminé
+    IF v_trajet.statut <> 'planifie' THEN
+        RAISE EXCEPTION 'TROP_TARD';
+    END IF;
+
+    SELECT * INTO v_participation FROM participations
+    WHERE covoiturage_id = p_covoiturage_id
+      AND passager_id = p_passager_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'PAS_INSCRIT';
+    END IF;
+
+    IF v_participation.statut = 'annulee' THEN
+        RAISE EXCEPTION 'DEJA_ANNULEE';
+    END IF;
+
+    -- 1) On rembourse EXACTEMENT ce qui avait été débité.
+    --    On utilise credits_utilises, et pas le prix actuel du trajet :
+    --    si le chauffeur a changé son prix entre-temps, la passagère doit
+    --    récupérer ce qu'elle a réellement payé.
+    UPDATE users
+    SET credits = credits + v_participation.credits_utilises
+    WHERE user_id = p_passager_id;
+
+    -- 2) On libère la place (sans jamais dépasser le total)
+    UPDATE covoiturages
+    SET nb_places_restantes = LEAST(nb_places_restantes + 1, nb_places_total)
+    WHERE covoiturage_id = p_covoiturage_id;
+
+    -- 3) On garde la ligne pour l'historique, en la marquant annulée
+    UPDATE participations
+    SET statut = 'annulee', annule_le = NOW()
+    WHERE participation_id = v_participation.participation_id;
+
+    RETURN json_build_object(
+        'credits_rembourses', v_participation.credits_utilises,
+        'places_restantes', LEAST(v_trajet.nb_places_restantes + 1, v_trajet.nb_places_total)
+    );
+END;
+$$;
+
+
+-- ============================================
+-- 2. ANNULER SON TRAJET (chauffeur)
+--
+--    - on rembourse TOUS les passagers confirmés
+--    - on passe le trajet en 'annule'
+--    - on renvoie la liste des passagers, pour que le serveur Node
+--      puisse leur envoyer un mail
+-- ============================================
+CREATE OR REPLACE FUNCTION annuler_trajet(
+    p_covoiturage_id INTEGER,
+    p_chauffeur_id INTEGER
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_trajet     covoiturages%ROWTYPE;
+    v_passagers  JSON;
+    v_total      INTEGER := 0;
+BEGIN
+    SELECT * INTO v_trajet FROM covoiturages
+    WHERE covoiturage_id = p_covoiturage_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'TRAJET_INTROUVABLE';
+    END IF;
+
+    -- ⚠️ SÉCURITÉ : seul le chauffeur du trajet peut l'annuler.
+    IF v_trajet.chauffeur_id <> p_chauffeur_id THEN
+        RAISE EXCEPTION 'PAS_TON_TRAJET';
+    END IF;
+
+    IF v_trajet.statut <> 'planifie' THEN
+        RAISE EXCEPTION 'TROP_TARD';
+    END IF;
+
+    -- On prépare la liste des passagers AVANT de les annuler,
+    -- pour pouvoir la renvoyer au serveur Node (envoi des mails).
+    SELECT COALESCE(json_agg(json_build_object(
+               'user_id', u.user_id,
+               'pseudo',  u.pseudo,
+               'email',   u.email,
+               'credits_rembourses', p.credits_utilises
+           )), '[]'::json)
+      INTO v_passagers
+      FROM participations p
+      JOIN users u ON u.user_id = p.passager_id
+     WHERE p.covoiturage_id = p_covoiturage_id
+       AND p.statut = 'confirmee';
+
+    -- 1) On rembourse tous les passagers confirmés, d'un coup
+    UPDATE users u
+    SET credits = u.credits + p.credits_utilises
+    FROM participations p
+    WHERE p.covoiturage_id = p_covoiturage_id
+      AND p.statut = 'confirmee'
+      AND u.user_id = p.passager_id;
+
+    GET DIAGNOSTICS v_total = ROW_COUNT;
+
+    -- 2) On marque leurs participations comme annulées
+    UPDATE participations
+    SET statut = 'annulee', annule_le = NOW()
+    WHERE covoiturage_id = p_covoiturage_id
+      AND statut = 'confirmee';
+
+    -- 3) On annule le trajet
+    UPDATE covoiturages
+    SET statut = 'annule', annule_le = NOW()
+    WHERE covoiturage_id = p_covoiturage_id;
+
+    RETURN json_build_object(
+        'passagers_rembourses', v_total,
+        'passagers', v_passagers,
+        'ville_depart', v_trajet.ville_depart,
+        'ville_arrivee', v_trajet.ville_arrivee,
+        'date_depart', v_trajet.date_depart
+    );
+END;
+$$;
+
+
+-- ============================================
+-- 3. MISE À JOUR DE LA RÉSERVATION (US 6)
+--
+-- Après une annulation, la ligne de participation reste en base avec le
+-- statut 'annulee'. Comme la table interdit deux lignes pour le même couple
+-- (trajet, passager), réserver à nouveau échouerait.
+-- On réactive donc la ligne existante au lieu d'en créer une deuxième.
+-- ============================================
+CREATE OR REPLACE FUNCTION reserver_covoiturage(
+    p_covoiturage_id INTEGER,
+    p_passager_id INTEGER
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_trajet        covoiturages%ROWTYPE;
+    v_credits       INTEGER;
+    v_participation participations%ROWTYPE;
+BEGIN
+    SELECT * INTO v_trajet FROM covoiturages
+    WHERE covoiturage_id = p_covoiturage_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'TRAJET_INTROUVABLE';
+    END IF;
+
     IF v_trajet.statut <> 'planifie' THEN
         RAISE EXCEPTION 'TRAJET_NON_RESERVABLE';
     END IF;
@@ -291,20 +439,17 @@ BEGIN
         RAISE EXCEPTION 'COMPLET';
     END IF;
 
-    -- A-t-elle déjà réservé ce trajet ?
-    SELECT COUNT(*) INTO v_existe
-    FROM participations
+    -- A-t-elle déjà une ligne pour ce trajet ?
+    SELECT * INTO v_participation FROM participations
     WHERE covoiturage_id = p_covoiturage_id
       AND passager_id = p_passager_id;
 
-    IF v_existe > 0 THEN
+    -- Oui, et elle n'est pas annulée : elle participe déjà.
+    IF FOUND AND v_participation.statut <> 'annulee' THEN
         RAISE EXCEPTION 'DEJA_INSCRIT';
     END IF;
 
-    -- On lit et verrouille aussi le compte de la passagère,
-    -- pour que ses crédits ne bougent pas pendant qu'on travaille.
-    SELECT credits INTO v_credits
-    FROM users
+    SELECT credits INTO v_credits FROM users
     WHERE user_id = p_passager_id
     FOR UPDATE;
 
@@ -316,11 +461,22 @@ BEGIN
         RAISE EXCEPTION 'CREDITS_INSUFFISANTS';
     END IF;
 
-    -- ----------------------------------------
-    -- 3. Les 3 écritures, dans la même transaction
-    -- ----------------------------------------
-    INSERT INTO participations (covoiturage_id, passager_id, credits_utilises, statut)
-    VALUES (p_covoiturage_id, p_passager_id, v_trajet.prix_par_personne, 'confirmee');
+    IF v_participation.participation_id IS NOT NULL THEN
+        -- Une ancienne réservation annulée existe : on la réactive.
+        UPDATE participations
+        SET statut = 'confirmee',
+            credits_utilises = v_trajet.prix_par_personne,
+            annule_le = NULL,
+            trajet_valide = NULL,
+            valide_le = NULL,
+            commentaire_probleme = NULL,
+            credits_verses = FALSE,
+            created_at = NOW()
+        WHERE participation_id = v_participation.participation_id;
+    ELSE
+        INSERT INTO participations (covoiturage_id, passager_id, credits_utilises, statut)
+        VALUES (p_covoiturage_id, p_passager_id, v_trajet.prix_par_personne, 'confirmee');
+    END IF;
 
     UPDATE users
     SET credits = credits - v_trajet.prix_par_personne
@@ -330,16 +486,10 @@ BEGIN
     SET nb_places_restantes = nb_places_restantes - 1
     WHERE covoiturage_id = p_covoiturage_id;
 
-    -- ----------------------------------------
-    -- 4. On renvoie un résumé au serveur Node
-    -- ----------------------------------------
     RETURN json_build_object(
         'credits_utilises', v_trajet.prix_par_personne,
         'credits_restants', v_credits - v_trajet.prix_par_personne,
         'places_restantes', v_trajet.nb_places_restantes - 1
     );
-
--- Si N'IMPORTE LAQUELLE des lignes ci-dessus échoue, PostgreSQL annule
--- automatiquement tout ce qui a été fait dans la fonction.
 END;
 $$;

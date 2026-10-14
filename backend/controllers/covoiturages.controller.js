@@ -2,6 +2,7 @@
 
 import supabase from "../config/supabase.js";
 import { Log } from "../config/models.mongo.js";
+import { envoyerMails, dateEnFrancais } from "../utils/mail.js";
 
 // ---- RECHERCHE DE TRAJETS ----
 // GET /api/covoiturages?depart=Lyon&arrivee=Paris&date=2025-07-15
@@ -438,6 +439,127 @@ export const historique = async (req, res) => {
     });
   }
 };
+// ============================================
+// US 10 — LES ANNULATIONS
+// ============================================
+
+// Les codes renvoyés par les fonctions PostgreSQL, traduits pour l'utilisateur.
+const MESSAGES_ANNULATION = {
+  TRAJET_INTROUVABLE: { code: 404, message: "Ce trajet n'existe pas." },
+  TROP_TARD: { code: 400, message: "Trop tard : ce trajet a déjà commencé ou est terminé." },
+  PAS_INSCRIT: { code: 400, message: "Tu ne participes pas à ce trajet." },
+  DEJA_ANNULEE: { code: 400, message: "Tu as déjà annulé cette réservation." },
+  PAS_TON_TRAJET: { code: 403, message: "Ce trajet n'est pas le tien." },
+};
+
+// Petite fonction partagée : retrouve le code d'erreur dans le message
+// renvoyé par PostgreSQL et le traduit.
+function traduireErreur(error, res) {
+  const codes = Object.keys(MESSAGES_ANNULATION);
+  const trouve = codes.find((c) => error.message.includes(c));
+  if (!trouve) return false; // erreur imprévue : l'appelant la gère
+  const reponse = MESSAGES_ANNULATION[trouve];
+  res.status(reponse.code).json({ message: reponse.message });
+  return true;
+}
+
+// ---- ANNULER SA PARTICIPATION (passager) ----
+// DELETE /api/covoiturages/:id/participer
+//
+// Tout se passe dans la fonction PostgreSQL annuler_participation :
+// rembourser, libérer la place et marquer la participation annulée
+// forment UNE SEULE transaction.
+export const annulerParticipation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user_id = req.user.user_id; // vient du jeton
+
+    const { data, error } = await supabase.rpc("annuler_participation", {
+      p_covoiturage_id: Number(id),
+      p_passager_id: user_id,
+    });
+
+    if (error) {
+      if (traduireErreur(error, res)) return;
+      throw error;
+    }
+
+    try {
+      await Log.create({
+        type: "annulation_participation",
+        user_id,
+        pseudo: req.user.pseudo,
+        details: `Annulation de la réservation du trajet #${id}`,
+      });
+    } catch (erreurMongo) {
+      console.log("Log Mongo non enregistré :", erreurMongo.message);
+    }
+
+    res.status(200).json({
+      message: "Réservation annulée. Tes crédits ont été remboursés.",
+      credits_rembourses: data.credits_rembourses,
+      places_restantes: data.places_restantes,
+    });
+  } catch (error) {
+    console.error("Erreur annulation participation :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+};
+
+// ---- ANNULER SON TRAJET (chauffeur) ----
+// DELETE /api/covoiturages/:id
+//
+// La fonction PostgreSQL rembourse TOUS les passagers d'un coup et renvoie
+// leur liste. On s'en sert ensuite pour leur envoyer un mail.
+export const annulerTrajet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chauffeur_id = req.user.user_id;
+
+    const { data, error } = await supabase.rpc("annuler_trajet", {
+      p_covoiturage_id: Number(id),
+      p_chauffeur_id: chauffeur_id,
+    });
+
+    if (error) {
+      if (traduireErreur(error, res)) return;
+      throw error;
+    }
+
+    // --- Les mails aux passagers (US 10) ---
+    // On les prépare à partir de la liste renvoyée par la base.
+    const trajetTexte = data.ville_depart + " → " + data.ville_arrivee;
+    const mails = (data.passagers || []).map((p) => ({
+      destinataire: p.email,
+      sujet: "EcoRide — Ton covoiturage " + trajetTexte + " a été annulé",
+      texte:
+        "Bonjour " + p.pseudo + ",\n\n" +
+        "Le chauffeur a annulé le covoiturage " + trajetTexte +
+        " prévu le " + dateEnFrancais(data.date_depart) + ".\n\n" +
+        "Tes " + p.credits_rembourses + " crédits t'ont été remboursés automatiquement.\n\n" +
+        "Tu peux chercher un autre trajet sur EcoRide.\n\n" +
+        "L'équipe EcoRide",
+    }));
+
+    // ⚠️ L'annulation est DÉJÀ enregistrée à ce stade.
+    // Si l'envoi des mails échoue, on ne doit pas répondre "erreur" :
+    // envoyerMails() n'échoue jamais et renvoie les liens d'aperçu.
+    const apercus = await envoyerMails(mails);
+
+    res.status(200).json({
+      message:
+        "Trajet annulé. " + data.passagers_rembourses +
+        " passager(s) ont été remboursés et prévenus par mail.",
+      passagers_rembourses: data.passagers_rembourses,
+      // En mode test (Ethereal), on renvoie les liens pour lire les mails.
+      apercus_mails: apercus,
+    });
+  } catch (error) {
+    console.error("Erreur annulation trajet :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+};
+
 // ---- DEMARRER UN TRAJET ----
 // PATCH /api/covoiturages/:id/demarrer
 export const demarrer = async (req, res) => {

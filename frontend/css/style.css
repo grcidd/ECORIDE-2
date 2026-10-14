@@ -787,3 +787,23 @@
 }
 
 .ligne-gain.total strong { color: var(--vert-principal); }
+
+/* ============================================
+   US 10 — Bouton d'annulation
+   ============================================ */
+.btn-danger {
+    background: white;
+    color: var(--erreur);
+    border: 1px solid var(--erreur);
+}
+
+.btn-danger:hover {
+    background: var(--erreur);
+    color: white;
+}
+
+/* Une ligne d'historique doit pouvoir passer à la ligne sur mobile */
+.trajet-historique {
+    flex-wrap: wrap;
+    gap: 10px;
+}

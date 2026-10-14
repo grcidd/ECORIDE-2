@@ -758,3 +758,32 @@
     font-size: 0.86rem;
     color: var(--gris-texte);
 }
+
+/* ============================================
+   US 9 — Ce que le chauffeur touchera
+   ============================================ */
+.encart-gains {
+    grid-column: 1 / -1;          /* occupe toute la largeur du formulaire */
+    background: var(--vert-pale);
+    border-radius: var(--radius-petit);
+    padding: 14px 16px;
+}
+
+.ligne-gain {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    font-size: 0.9rem;
+    color: var(--vert-fonce);
+}
+
+/* La ligne "Tu reçois", mise en avant */
+.ligne-gain.total {
+    border-top: 1px solid var(--vert-clair);
+    margin-top: 5px;
+    padding-top: 9px;
+    font-size: 1rem;
+}
+
+.ligne-gain.total strong { color: var(--vert-principal); }

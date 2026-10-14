@@ -232,11 +232,18 @@ export const participer = async (req, res) => {
   }
 };
 
-// ---- CREER UN TRAJET (chauffeur) ----
-// POST /api/covoiturages
+// ---- CRÉER UN TRAJET (US 9) ----
+// POST /api/covoiturages   (protégé : il faut être connecté ET chauffeur)
+
+// La commission que la plateforme prend sur CHAQUE passager.
+// Elle est enregistrée sur le trajet au moment de sa création : si le tarif
+// de la plateforme change un jour, les anciens trajets gardent le leur et
+// les statistiques de l'administrateur restent justes.
+const CREDITS_PLATEFORME = 2;
+
 export const creer = async (req, res) => {
   try {
-    const chauffeur_id = req.user.user_id;
+    const chauffeur_id = req.user.user_id; // vient du jeton, jamais du navigateur
     const {
       vehicule_id,
       ville_depart,
@@ -247,58 +254,145 @@ export const creer = async (req, res) => {
       heure_depart,
       date_arrivee,
       heure_arrivee,
-      duree_minutes,
       prix_par_personne,
       nb_places_total,
     } = req.body;
 
-    // Vérification que l'utilisateur est bien chauffeur
+    // --- 1. Tous les champs obligatoires sont-ils là ? ---
+    // Attention : en JavaScript, le nombre 0 est considéré comme "faux".
+    // Avec "!prix_par_personne", saisir 0 aurait dit "champ non rempli"
+    // alors que le champ EST rempli. On teste donc le vide explicitement
+    // pour les deux champs numériques, et on vérifie leur valeur plus bas.
+    const vide = (v) => v === undefined || v === null || v === "";
+
+    if (
+      !vehicule_id || !ville_depart || !ville_arrivee ||
+      !date_depart || !heure_depart || !date_arrivee || !heure_arrivee ||
+      vide(prix_par_personne) || vide(nb_places_total)
+    ) {
+      return res.status(400).json({
+        message: "Merci de remplir tous les champs obligatoires.",
+      });
+    }
+
+    // --- 2. Est-elle bien chauffeur ? ---
     const { data: user } = await supabase
       .from("users")
       .select("est_chauffeur")
       .eq("user_id", chauffeur_id)
-      .single();
+      .maybeSingle();
 
-    if (!user.est_chauffeur) {
-      return res
-        .status(403)
-        .json({ message: "Tu dois être chauffeur pour proposer un trajet." });
+    if (!user || !user.est_chauffeur) {
+      return res.status(403).json({
+        message: "Tu dois être chauffeur pour proposer un trajet.",
+      });
     }
 
-    // Récupérer le véhicule pour savoir si électrique
+    // --- 3. Le véhicule lui appartient-il ? ---
+    // ⚠️ SÉCURITÉ : le .eq("user_id", chauffeur_id) est indispensable.
+    // Sans lui, on pouvait créer un trajet avec la voiture de quelqu'un
+    // d'autre en envoyant simplement son numéro.
     const { data: vehicule } = await supabase
       .from("vehicules")
-      .select("energie")
+      .select("vehicule_id, energie, nb_places")
       .eq("vehicule_id", vehicule_id)
-      .single();
+      .eq("user_id", chauffeur_id)
+      .maybeSingle();
 
-    const est_ecologique = vehicule?.energie === "electrique";
+    if (!vehicule) {
+      return res.status(400).json({
+        message: "Ce véhicule n'existe pas ou ne t'appartient pas.",
+      });
+    }
+
+    // --- 4. Le prix ---
+    const prix = Number(prix_par_personne);
+    if (!Number.isInteger(prix) || prix < 1) {
+      return res.status(400).json({
+        message: "Le prix doit être un nombre entier d'au moins 1 crédit.",
+      });
+    }
+
+    // --- 5. Le nombre de places ---
+    // Le chauffeur occupe une place : il ne peut en proposer que les autres.
+    const placesMax = vehicule.nb_places - 1;
+    const places = Number(nb_places_total);
+
+    if (!Number.isInteger(places) || places < 1 || places > placesMax) {
+      return res.status(400).json({
+        message:
+          "Avec ce véhicule tu peux proposer entre 1 et " + placesMax +
+          " place(s).",
+      });
+    }
+
+    // --- 6. Les dates et heures ---
+    const depart = new Date(date_depart + "T" + heure_depart);
+    const arrivee = new Date(date_arrivee + "T" + heure_arrivee);
+
+    if (isNaN(depart.getTime()) || isNaN(arrivee.getTime())) {
+      return res.status(400).json({ message: "Les dates ne sont pas valides." });
+    }
+
+    // On ne propose pas un trajet déjà passé.
+    if (depart < new Date()) {
+      return res.status(400).json({
+        message: "Le départ doit être dans le futur.",
+      });
+    }
+
+    // L'arrivée doit venir après le départ.
+    if (arrivee <= depart) {
+      return res.status(400).json({
+        message: "L'arrivée doit être après le départ.",
+      });
+    }
+
+    // --- 7. La durée, calculée par le serveur ---
+    // On ne la demande PAS au navigateur : il pourrait envoyer n'importe quoi,
+    // alors que la durée doit toujours correspondre aux heures affichées (US 4).
+    // Soustraire deux dates JavaScript donne un écart en millisecondes.
+    // On divise par 60000 pour obtenir des minutes.
+    // Cette seule ligne gère tous les cas : même jour, lendemain, ou plus.
+    const duree_minutes = Math.round((arrivee - depart) / 60000);
+
+    // --- 8. Écologique ? ---
+    // C'est le serveur qui le détermine, à partir de l'énergie du véhicule.
+    const est_ecologique = vehicule.energie === "electrique";
 
     const { data: nouveau, error } = await supabase
       .from("covoiturages")
       .insert({
         chauffeur_id,
-        vehicule_id,
-        ville_depart,
-        ville_arrivee,
-        adresse_depart,
-        adresse_arrivee,
+        vehicule_id: vehicule.vehicule_id,
+        ville_depart: ville_depart.trim(),
+        ville_arrivee: ville_arrivee.trim(),
+        adresse_depart: adresse_depart ? adresse_depart.trim() : null,
+        adresse_arrivee: adresse_arrivee ? adresse_arrivee.trim() : null,
         date_depart,
         heure_depart,
         date_arrivee,
         heure_arrivee,
         duree_minutes,
-        prix_par_personne,
-        nb_places_total,
-        nb_places_restantes: nb_places_total,
+        prix_par_personne: prix,
+        nb_places_total: places,
+        nb_places_restantes: places, // au départ, toutes les places sont libres
         est_ecologique,
+        credits_plateforme: CREDITS_PLATEFORME,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    res.status(201).json({ message: "Trajet créé !", trajet: nouveau });
+    res.status(201).json({
+      message: "Trajet créé !",
+      trajet: nouveau,
+      // US 9 : on dit clairement au chauffeur ce qu'il touchera.
+      credits_plateforme: CREDITS_PLATEFORME,
+      gain_par_passager: prix - CREDITS_PLATEFORME,
+      gain_maximum: (prix - CREDITS_PLATEFORME) * places,
+    });
   } catch (error) {
     console.error("Erreur création trajet :", error);
     res.status(500).json({ message: "Erreur serveur." });

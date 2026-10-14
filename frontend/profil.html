@@ -650,10 +650,27 @@
                   />
                 </div>
 
-                <div class="champ-groupe">
-                  <label for="t-duree">Durée estimée (minutes)</label>
-                  <input type="number" id="t-duree" placeholder="Ex : 240" />
-                </div>
+                <!-- US 9 : on annonce clairement au chauffeur ce qu'il touchera.
+                         La durée n'est plus demandée : le serveur la calcule
+                         à partir des heures de départ et d'arrivée. -->
+                    <div class="encart-gains" id="encart-gains">
+                      <div class="ligne-gain">
+                        <span>Prix demandé au passager</span>
+                        <strong id="gain-prix">—</strong>
+                      </div>
+                      <div class="ligne-gain">
+                        <span>Commission EcoRide</span>
+                        <strong id="gain-commission">— 2 crédits</strong>
+                      </div>
+                      <div class="ligne-gain total">
+                        <span>Tu reçois par passager</span>
+                        <strong id="gain-net">—</strong>
+                      </div>
+                      <div class="ligne-gain">
+                        <span>Soit au maximum</span>
+                        <strong id="gain-max">—</strong>
+                      </div>
+                    </div>
 
                 <div class="champ-groupe">
                   <label for="t-vehicule">Véhicule</label>
@@ -1196,6 +1213,32 @@
         }
       }
 
+      // ---- US 9 : combien le chauffeur va-t-il toucher ? ----
+      // La plateforme prend 2 crédits par passager. Le chauffeur doit le
+      // savoir AVANT de publier : c'est demandé par l'US 9.
+      // Cette valeur est aussi fixée côté serveur : ici c'est de l'affichage.
+      const CREDITS_PLATEFORME = 2;
+
+      function majGains() {
+        const prix = parseInt(document.getElementById("t-prix").value, 10);
+        const places = parseInt(document.getElementById("t-places").value, 10);
+
+        const prixOk = Number.isInteger(prix) && prix > 0;
+        const net = prixOk ? prix - CREDITS_PLATEFORME : null;
+
+        document.getElementById("gain-prix").textContent = prixOk
+          ? prix + " crédits"
+          : "—";
+        document.getElementById("gain-commission").textContent =
+          "− " + CREDITS_PLATEFORME + " crédits";
+        document.getElementById("gain-net").textContent =
+          net === null ? "—" : net + " crédits";
+
+        const placesOk = Number.isInteger(places) && places > 0;
+        document.getElementById("gain-max").textContent =
+          net === null || !placesOk ? "—" : net * places + " crédits";
+      }
+
       async function proposerTrajet() {
         const vehiculeValue = document.getElementById("t-vehicule").value;
         const ville_depart = document.getElementById("t-depart").value.trim();
@@ -1210,18 +1253,15 @@
         const heure_depart = document.getElementById("t-heure-depart").value;
         const date_arrivee = document.getElementById("t-date-arrivee").value;
         const heure_arrivee = document.getElementById("t-heure-arrivee").value;
-        const dureeValue = document.getElementById("t-duree").value;
         const prixValue = document.getElementById("t-prix").value;
         const placesValue = document.getElementById("t-places").value;
 
+        // L'heure d'arrivée est obligatoire : c'est elle qui sert à calculer
+        // la durée, et donc le filtre "durée maximum" de l'US 4.
         if (
-          !vehiculeValue ||
-          !ville_depart ||
-          !ville_arrivee ||
-          !date_depart ||
-          !heure_depart ||
-          !prixValue ||
-          !placesValue
+          !vehiculeValue || !ville_depart || !ville_arrivee ||
+          !date_depart || !heure_depart || !date_arrivee || !heure_arrivee ||
+          !prixValue || !placesValue
         ) {
           afficherAlerte(
             "msg-trajet",
@@ -1239,11 +1279,13 @@
           adresse_arrivee,
           date_depart,
           heure_depart,
-          date_arrivee: date_arrivee || null,
-          heure_arrivee: heure_arrivee || null,
-          duree_minutes: dureeValue ? parseInt(dureeValue, 10) : null,
-          prix_par_personne: parseFloat(prixValue),
+          date_arrivee,
+          heure_arrivee,
+          // parseInt et pas parseFloat : les crédits sont des nombres entiers.
+          prix_par_personne: parseInt(prixValue, 10),
           nb_places_total: parseInt(placesValue, 10),
+          // On n'envoie PAS la durée : le serveur la calcule lui-même à
+          // partir des heures, pour qu'elle soit toujours cohérente.
         };
 
         try {
@@ -1253,19 +1295,39 @@
           });
 
           const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-trajet", "erreur", data.message);
+            return;
+          }
+
+          // On répète au chauffeur ce qu'il touchera, avec les chiffres
+          // renvoyés par le serveur (et pas ceux calculés dans la page).
           afficherAlerte(
             "msg-trajet",
-            rep.ok ? "succes" : "erreur",
-            data.message || "Erreur."
+            "succes",
+            "Trajet publié ! La plateforme prélève " +
+              data.credits_plateforme +
+              " crédits par passager : tu recevras " +
+              data.gain_par_passager +
+              " crédits par passager, soit " +
+              data.gain_maximum +
+              " crédits si le trajet est complet."
           );
 
-          if (rep.ok) {
-            chargerHistorique();
-          }
+          // On vide le formulaire et on rafraîchit la liste des trajets
+          ["t-depart","t-arrivee","t-adr-depart","t-adr-arrivee",
+           "t-date-depart","t-heure-depart","t-date-arrivee","t-heure-arrivee",
+           "t-prix","t-places"].forEach((id) => {
+            document.getElementById(id).value = "";
+          });
+          majGains();
+          chargerHistorique();
         } catch {
           afficherAlerte("msg-trajet", "erreur", "Erreur serveur.");
         }
       }
+
       window.addEventListener("DOMContentLoaded", () => {
         document.getElementById("sidebar-avatar").textContent = (user.pseudo ||
           "?")[0].toUpperCase();
@@ -1323,6 +1385,11 @@
         document
           .getElementById("btn-publier-trajet")
           .addEventListener("click", proposerTrajet);
+
+        // US 9 : on recalcule les gains dès que le prix ou les places changent
+        document.getElementById("t-prix").addEventListener("input", majGains);
+        document.getElementById("t-places").addEventListener("input", majGains);
+        majGains();
 
         brancherSelectionRole();
         marquerRoleActuel();

@@ -1,7 +1,7 @@
 // Gestion des covoiturages : recherche, détail, création, participation
 
 import supabase from "../config/supabase.js";
-import { Log } from "../config/models.mongo.js";
+import { Log, Signalement } from "../config/models.mongo.js";
 import { envoyerMails, dateEnFrancais } from "../utils/mail.js";
 
 // ---- RECHERCHE DE TRAJETS ----
@@ -560,71 +560,178 @@ export const annulerTrajet = async (req, res) => {
   }
 };
 
-// ---- DEMARRER UN TRAJET ----
+// ============================================
+// US 11 — DÉMARRER, ARRIVER, VALIDER
+//
+// LA RÈGLE CENTRALE : le chauffeur n'est payé QUE lorsqu'un passager
+// confirme que tout s'est bien passé. Ni au départ, ni à l'arrivée.
+// ============================================
+
+const MESSAGES_TRAJET = {
+  TRAJET_INTROUVABLE: { code: 404, message: "Ce trajet n'existe pas." },
+  PAS_TON_TRAJET: { code: 403, message: "Ce trajet n'est pas le tien." },
+  MAUVAIS_STATUT: { code: 400, message: "Cette action n'est pas possible à ce stade du trajet." },
+  TRAJET_NON_TERMINE: { code: 400, message: "Ce trajet n'est pas encore terminé." },
+  PAS_INSCRIT: { code: 403, message: "Tu n'as pas participé à ce trajet." },
+  PARTICIPATION_ANNULEE: { code: 400, message: "Tu avais annulé cette réservation." },
+  DEJA_VALIDE: { code: 400, message: "Tu as déjà donné ton avis sur ce trajet." },
+  COMMENTAIRE_REQUIS: { code: 400, message: "Merci d'expliquer ce qui s'est mal passé." },
+};
+
+function traduireErreurTrajet(error, res) {
+  const codes = Object.keys(MESSAGES_TRAJET);
+  const trouve = codes.find((c) => error.message.includes(c));
+  if (!trouve) return false;
+  const reponse = MESSAGES_TRAJET[trouve];
+  res.status(reponse.code).json({ message: reponse.message });
+  return true;
+}
+
+// ---- DÉMARRER ----
 // PATCH /api/covoiturages/:id/demarrer
 export const demarrer = async (req, res) => {
   try {
     const { id } = req.params;
-    const user_id = req.user.user_id;
 
-    const { error } = await supabase
-      .from("covoiturages")
-      .update({ statut: "en_cours" })
-      .eq("covoiturage_id", id)
-      .eq("chauffeur_id", user_id); // sécurité : seul le chauffeur peut démarrer
+    const { error } = await supabase.rpc("demarrer_trajet", {
+      p_covoiturage_id: Number(id),
+      p_chauffeur_id: req.user.user_id,
+    });
 
-    if (error) throw error;
+    if (error) {
+      if (traduireErreurTrajet(error, res)) return;
+      throw error;
+    }
 
-    res.status(200).json({ message: "Trajet démarré !" });
+    res.status(200).json({ message: "Trajet démarré ! Bonne route." });
   } catch (error) {
+    console.error("Erreur démarrage :", error);
     res.status(500).json({ message: "Erreur serveur." });
   }
 };
 
-// ---- TERMINER UN TRAJET ----
+// ---- ARRIVÉE À DESTINATION ----
 // PATCH /api/covoiturages/:id/terminer
+//
+// ⚠️ Cette route NE PAIE PERSONNE.
+// Avant, elle créditait le chauffeur tout de suite, et sans vérifier le
+// statut : terminer deux fois le payait deux fois. Maintenant elle se
+// contente de marquer le trajet terminé et d'inviter les passagers à valider.
 export const terminer = async (req, res) => {
   try {
     const { id } = req.params;
-    const user_id = req.user.user_id;
 
-    const { error } = await supabase
-      .from("covoiturages")
-      .update({ statut: "termine" })
-      .eq("covoiturage_id", id)
-      .eq("chauffeur_id", user_id);
+    const { data, error } = await supabase.rpc("terminer_trajet", {
+      p_covoiturage_id: Number(id),
+      p_chauffeur_id: req.user.user_id,
+    });
 
-    if (error) throw error;
+    if (error) {
+      if (traduireErreurTrajet(error, res)) return;
+      throw error;
+    }
 
-    // Crédits du chauffeur : prix * nb participants - 2 crédits plateforme par passager
-    const { data: participations } = await supabase
-      .from("participations")
-      .select("credits_utilises")
-      .eq("covoiturage_id", id)
-      .eq("statut", "confirmee");
+    // Le mail qui invite chaque passager à valider le trajet (US 11)
+    const trajetTexte = data.ville_depart + " → " + data.ville_arrivee;
+    const mails = (data.passagers || []).map((p) => ({
+      destinataire: p.email,
+      sujet: "EcoRide — Comment s'est passé ton trajet " + trajetTexte + " ?",
+      texte:
+        "Bonjour " + p.pseudo + ",\n\n" +
+        "Ton covoiturage " + trajetTexte + " du " +
+        dateEnFrancais(data.date_depart) + " est terminé.\n\n" +
+        "Rends-toi dans ton espace EcoRide pour confirmer que tout s'est " +
+        "bien passé. C'est seulement à ce moment-là que le chauffeur " +
+        "recevra ses crédits.\n\n" +
+        "Tu pourras aussi laisser une note et un avis.\n\n" +
+        "L'équipe EcoRide",
+    }));
 
-    const { data: trajet } = await supabase
-      .from("covoiturages")
-      .select("prix_par_personne")
-      .eq("covoiturage_id", id)
-      .single();
+    // L'arrivée est déjà enregistrée : un mail en échec ne doit pas
+    // faire croire au chauffeur que rien ne s'est passé.
+    const apercus = await envoyerMails(mails);
 
-    const nbPassagers = participations?.length || 0;
-    const creditsGagnes = nbPassagers * (trajet.prix_par_personne - 2);
-
-    const { data: chauffeur } = await supabase
-      .from("users")
-      .select("credits")
-      .eq("user_id", user_id)
-      .single();
-
-    await supabase
-      .from("users")
-      .update({ credits: chauffeur.credits + creditsGagnes })
-      .eq("user_id", user_id);
-
-    res.status(200).json({ message: "Trajet terminé ! Crédits mis à jour." });
+    res.status(200).json({
+      message:
+        "Trajet terminé ! " + (data.passagers || []).length +
+        " passager(s) ont été invités à valider. " +
+        "Tes crédits te seront versés après leur confirmation.",
+      apercus_mails: apercus,
+    });
   } catch (error) {
+    console.error("Erreur arrivée :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+};
+
+// ---- LE PASSAGER VALIDE (ou signale un problème) ----
+// POST /api/covoiturages/:id/valider
+// Corps : { tout_ok: true }  ou  { tout_ok: false, commentaire: "..." }
+export const validerTrajet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const passager_id = req.user.user_id;
+    const { tout_ok, commentaire } = req.body;
+
+    if (typeof tout_ok !== "boolean") {
+      return res.status(400).json({
+        message: "Indique si le trajet s'est bien passé ou non.",
+      });
+    }
+
+    // C'est la base qui décide : elle vérifie tout et paie le chauffeur
+    // (ou pas) dans une seule transaction.
+    const { data, error } = await supabase.rpc("valider_trajet", {
+      p_covoiturage_id: Number(id),
+      p_passager_id: passager_id,
+      p_tout_ok: tout_ok,
+      p_commentaire: commentaire || null,
+    });
+
+    if (error) {
+      if (traduireErreurTrajet(error, res)) return;
+      throw error;
+    }
+
+    // --- Tout s'est bien passé ---
+    if (data.valide) {
+      return res.status(200).json({
+        message:
+          "Merci ! Le chauffeur a reçu " + data.credits_verses_au_chauffeur +
+          " crédits. Tu peux maintenant laisser un avis.",
+        credits_verses_au_chauffeur: data.credits_verses_au_chauffeur,
+      });
+    }
+
+    // --- Un problème a été signalé ---
+    // Le chauffeur N'EST PAS payé : c'est déjà garanti par la base
+    // (credits_verses reste à false). On enregistre en plus le signalement
+    // dans MongoDB, qui alimentera l'espace employé (US 12).
+    let signalementEnregistre = false;
+    try {
+      await Signalement.create({
+        covoiturage_id: Number(id),
+        passager_id,
+        chauffeur_id: data.chauffeur_id,
+        commentaire: data.commentaire,
+        statut: "en_attente",
+      });
+      signalementEnregistre = true;
+    } catch (erreurMongo) {
+      // Si MongoDB est injoignable, le chauffeur reste quand même non payé :
+      // c'est la base PostgreSQL qui porte cette information, pas MongoDB.
+      console.error("⚠️ Signalement non enregistré dans MongoDB :", erreurMongo.message);
+    }
+
+    res.status(200).json({
+      message:
+        "Ton signalement a été transmis. Le chauffeur ne sera pas payé " +
+        "tant qu'un employé n'aura pas examiné la situation.",
+      credits_verses_au_chauffeur: 0,
+      signalement_enregistre: signalementEnregistre,
+    });
+  } catch (error) {
+    console.error("Erreur validation :", error);
     res.status(500).json({ message: "Erreur serveur." });
   }
 };

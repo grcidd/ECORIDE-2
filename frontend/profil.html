@@ -285,6 +285,43 @@
         border-bottom: none;
       }
 
+      /* US 11 : panneau qui s'ouvre sous un trajet terminé
+         (signalement d'un problème, ou dépôt d'un avis). */
+      .panneau-validation {
+        width: 100%;
+        background: var(--vert-pale);
+        border-radius: var(--radius-petit);
+        padding: 14px;
+      }
+
+      .panneau-validation label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--gris-texte);
+      }
+
+      .panneau-validation textarea,
+      .panneau-validation select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1.5px solid var(--gris-bordure);
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.9rem;
+        color: var(--noir-doux);
+        background: white;
+        outline: none;
+      }
+
+      .panneau-validation textarea:focus,
+      .panneau-validation select:focus {
+        border-color: var(--vert-principal);
+      }
+
       .statut-badge {
         display: inline-flex;
         align-items: center;
@@ -781,9 +818,16 @@
       }
 
       function afficherAlerte(id, type, message) {
-        document.getElementById(id).innerHTML = `
-          <div class="alerte alerte-${type}">${message}</div>
-        `;
+        const zone = document.getElementById(id);
+
+        // Le cadre est écrit par moi, le texte vient du serveur :
+        // on le pose avec textContent, jamais interprété comme du HTML.
+        zone.innerHTML = `<div class="alerte alerte-${type}"></div>`;
+        zone.querySelector(".alerte").textContent = message;
+
+        // Sans ça, le message peut s'afficher tout en haut de la page,
+        // hors de l'écran : on ne le voit jamais.
+        zone.scrollIntoView({ behavior: "smooth", block: "center" });
       }
 
       // ---- Construire la ligne d'UN trajet dans l'historique ----
@@ -810,8 +854,9 @@
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span class="statut-badge js-statut"></span>
-            <span class="js-actions" style="display:flex;gap:8px"></span>
-          </div>`;
+            <span class="js-actions" style="display:flex;gap:8px;flex-wrap:wrap"></span>
+          </div>
+          <div class="js-panneau panneau-validation" hidden></div>`;
 
         const dans = (c) => ligne.querySelector("." + c);
 
@@ -848,7 +893,7 @@
               annulerTrajet(t.covoiturage_id, t.ville_depart, t.ville_arrivee)
             );
           } else if (t.statut === "en_cours") {
-            bouton("🏁 Terminer", "btn-vert", () =>
+            bouton("🏁 Arrivée à destination", "btn-vert", () =>
               terminerTrajet(t.covoiturage_id)
             );
           }
@@ -867,10 +912,196 @@
             bouton("Annuler ma réservation", "btn-danger", () =>
               annulerReservation(t.covoiturage_id)
             );
+          } else if (t.statut === "termine") {
+            // ---- US 11 : le passager dit comment ça s'est passé ----
+            // trajet_valide vaut null tant qu'il n'a rien dit.
+            const panneau = dans("js-panneau");
+
+            if (
+              participation.trajet_valide === null ||
+              participation.trajet_valide === undefined
+            ) {
+              // Tant qu'il n'a pas répondu, le chauffeur n'est PAS payé.
+              const info = document.createElement("span");
+              info.className = "statut-badge statut-planifie";
+              info.textContent = "À confirmer";
+              actions.appendChild(info);
+
+              bouton("✅ Tout s'est bien passé", "btn-vert", () =>
+                validerTrajet(t.covoiturage_id, true)
+              );
+              bouton("⚠️ J'ai eu un problème", "btn-danger", () =>
+                afficherFormProbleme(panneau, t.covoiturage_id)
+              );
+            } else if (participation.trajet_valide === true) {
+              // Il a validé : le chauffeur a été payé. On propose l'avis.
+              const ok = document.createElement("span");
+              ok.className = "statut-badge statut-termine";
+              ok.textContent = "✅ Trajet confirmé";
+              actions.appendChild(ok);
+
+              bouton("⭐ Laisser un avis", "btn-vert", () =>
+                afficherFormAvis(panneau, t.covoiturage_id)
+              );
+            } else {
+              // Il a signalé un problème : un employé doit trancher (US 12).
+              const pb = document.createElement("span");
+              pb.className = "statut-badge statut-annule";
+              pb.textContent = "⚠️ Problème signalé";
+              actions.appendChild(pb);
+
+              if (participation.commentaire_probleme) {
+                panneau.hidden = false;
+                const txt = document.createElement("p");
+                txt.style.cssText =
+                  "margin:0;font-size:0.85rem;color:var(--gris-texte)";
+                // textContent : le commentaire vient d'un utilisateur.
+                txt.textContent =
+                  "Ton signalement : " + participation.commentaire_probleme;
+                panneau.appendChild(txt);
+              }
+            }
           }
         }
 
         return ligne;
+      }
+
+      // ---- US 11 : formulaire "j'ai eu un problème" ----
+      // On l'ouvre sous la ligne du trajet, au lieu d'une pop-up.
+      function afficherFormProbleme(panneau, covoiturageId) {
+        panneau.hidden = false;
+        panneau.innerHTML = `
+          <label for="pb-${covoiturageId}">
+            Explique ce qui s'est mal passé (obligatoire)
+          </label>
+          <textarea id="pb-${covoiturageId}" rows="3"
+            placeholder="Exemple : le chauffeur n'est jamais venu au point de rendez-vous."></textarea>
+          <p class="js-erreur" style="margin:6px 0 0;color:#b91c1c;font-size:0.85rem" hidden></p>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-danger js-envoyer" style="padding:8px 14px;font-size:0.82rem">
+              Envoyer le signalement
+            </button>
+            <button class="btn js-annuler" style="padding:8px 14px;font-size:0.82rem">
+              Annuler
+            </button>
+          </div>`;
+
+        const zoneTexte = panneau.querySelector("textarea");
+        zoneTexte.focus();
+
+        panneau.querySelector(".js-annuler").addEventListener("click", () => {
+          panneau.hidden = true;
+          panneau.innerHTML = "";
+        });
+
+        panneau.querySelector(".js-envoyer").addEventListener("click", () => {
+          const commentaire = zoneTexte.value.trim();
+          const erreur = panneau.querySelector(".js-erreur");
+
+          if (commentaire === "") {
+            erreur.textContent = "Merci d'expliquer ce qui s'est mal passé.";
+            erreur.hidden = false;
+            zoneTexte.focus();
+            return;
+          }
+          erreur.hidden = true;
+          validerTrajet(covoiturageId, false, commentaire);
+        });
+      }
+
+      // ---- US 11 : envoi de la réponse du passager ----
+      // tout_ok = true  -> le chauffeur est payé
+      // tout_ok = false -> il n'est pas payé, un employé regardera (US 12)
+      async function validerTrajet(covoiturageId, toutOk, commentaire) {
+        if (
+          toutOk &&
+          !confirm(
+            "Confirmer que tout s'est bien passé ? Le chauffeur recevra ses crédits."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee(`/covoiturages/${covoiturageId}/valider`, {
+            method: "POST",
+            body: JSON.stringify({
+              tout_ok: toutOk,
+              commentaire: commentaire || null,
+            }),
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte("msg-historique", "succes", data.message);
+          chargerHistorique(); // on recharge pour voir le nouvel état
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- US 11 : formulaire d'avis (note + commentaire) ----
+      function afficherFormAvis(panneau, covoiturageId) {
+        panneau.hidden = false;
+        panneau.innerHTML = `
+          <label for="note-${covoiturageId}">
+            Ta note sur le chauffeur
+          </label>
+          <select id="note-${covoiturageId}">
+            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+            <option value="4">⭐⭐⭐⭐ Très bien</option>
+            <option value="3">⭐⭐⭐ Correct</option>
+            <option value="2">⭐⭐ Moyen</option>
+            <option value="1">⭐ Mauvais</option>
+          </select>
+          <textarea rows="2" style="margin-top:8px"
+            placeholder="Ton commentaire (facultatif)"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-vert js-envoyer" style="padding:8px 14px;font-size:0.82rem">
+              Envoyer mon avis
+            </button>
+            <button class="btn js-annuler" style="padding:8px 14px;font-size:0.82rem">
+              Annuler
+            </button>
+          </div>`;
+
+        panneau.querySelector(".js-annuler").addEventListener("click", () => {
+          panneau.hidden = true;
+          panneau.innerHTML = "";
+        });
+
+        panneau.querySelector(".js-envoyer").addEventListener("click", async () => {
+          const note = Number(panneau.querySelector("select").value);
+          const commentaire = panneau.querySelector("textarea").value.trim();
+
+          try {
+            const rep = await apiProtegee("/avis", {
+              method: "POST",
+              body: JSON.stringify({
+                covoiturage_id: covoiturageId,
+                note: note,
+                commentaire: commentaire || null,
+              }),
+            });
+            const data = await rep.json();
+
+            if (!rep.ok) {
+              afficherAlerte("msg-historique", "erreur", data.message);
+              return;
+            }
+
+            panneau.hidden = true;
+            panneau.innerHTML = "";
+            afficherAlerte("msg-historique", "succes", data.message);
+          } catch {
+            afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+          }
+        });
       }
 
       // ---- US 10 : le passager annule sa réservation ----

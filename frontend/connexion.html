@@ -344,10 +344,11 @@
             <input
               type="password"
               id="reg-password"
-              placeholder="Min. 8 caractères"
+              placeholder="Ex. : Motdepasse1!"
             />
             <p class="champ-indice">
-              Au moins 8 caractères, une majuscule et un chiffre.
+              Au moins 8 caractères, une minuscule, une majuscule, un
+              chiffre et un caractère spécial (par exemple ! ? @).
             </p>
           </div>
           <div class="champ-groupe">
@@ -464,6 +465,22 @@
           afficherMessage(
             "msg-inscription",
             "Les mots de passe ne correspondent pas.",
+            "erreur"
+          );
+          return;
+        }
+
+        // Même règle que le serveur, pour prévenir tout de suite au lieu
+        // de faire un aller-retour inutile.
+        // ATTENTION : ce n'est QU'UN CONFORT. Le serveur revérifie tout,
+        // car cette ligne peut être contournée depuis le navigateur.
+        const regleMotDePasse =
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+        if (!regleMotDePasse.test(password)) {
+          afficherMessage(
+            "msg-inscription",
+            "Le mot de passe doit contenir au moins 8 caractères, une " +
+              "minuscule, une majuscule, un chiffre et un caractère spécial.",
             "erreur"
           );
           return;

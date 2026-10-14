@@ -6,6 +6,10 @@
 -- ⚠️ ATTENTION : ce fichier commence par EFFACER toutes les données
 -- existantes, pour repartir d'une base propre et prévisible.
 --
+-- 👉 Si tu veux GARDER tes comptes personnels (grcidd, grcdtech,
+--    employer_martin), utilise « seed_garde_mes_comptes.sql » à la place.
+--    Ce fichier-ci efface absolument tout.
+--
 -- Mot de passe de TOUS les comptes : Test1234!
 --
 -- Les dates sont RELATIVES au jour où tu exécutes le fichier

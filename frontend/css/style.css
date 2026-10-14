@@ -32,6 +32,13 @@
    
    /* --- Reset & Base --- */
    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+   /* IMPORTANT : l'attribut HTML "hidden" doit toujours cacher l'élément.
+      Par défaut le navigateur applique display:none, mais n'importe quelle
+      règle CSS qui fixe un "display" (nos boutons et nos pastilles utilisent
+      display:inline-flex) l'emporte et l'élément reste visible.
+      Sans cette ligne, le badge "Écologique" s'affichait sur TOUS les trajets. */
+   [hidden] { display: none !important; }
    
    html { scroll-behavior: smooth; font-size: 16px; }
    
@@ -657,4 +664,51 @@
     font-size: 0.9rem;
     font-weight: 400;
     color: var(--gris-texte);
+}
+
+/* ============================================
+   US 6 — Double confirmation avant de réserver
+   ============================================ */
+.bloc-confirmation {
+    margin-top: 16px;
+    padding: 18px;
+    background: var(--vert-pale);
+    border: 2px solid var(--vert-clair);
+    border-radius: var(--radius-petit);
+}
+
+.bloc-confirmation p {
+    margin-bottom: 14px;
+    color: var(--vert-fonce);
+}
+
+.bloc-confirmation .credits-mis {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.bloc-confirmation .boutons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Bouton secondaire (Annuler) */
+.btn-gris {
+    background: white;
+    color: var(--gris-texte);
+    border: 1px solid var(--gris-bordure);
+}
+
+/* Un bouton désactivé doit se VOIR */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Petite explication sous un bouton désactivé */
+.raison-blocage {
+    margin-top: 8px;
+    font-size: 0.86rem;
+    color: var(--erreur);
 }

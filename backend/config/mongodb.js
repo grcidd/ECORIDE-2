@@ -13,6 +13,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+// Par défaut, si MongoDB est injoignable, Mongoose MET EN ATTENTE les
+// opérations pendant 10 secondes avant d'abandonner. Résultat : chaque
+// connexion et chaque réservation prenait 10 secondes de plus, alors que
+// le log n'est qu'un bonus.
+// Avec bufferCommands à false, l'opération échoue tout de suite, le
+// try/catch de l'appelant l'attrape, et la réponse part sans attendre.
+mongoose.set("bufferCommands", false);
+
 const connectMongo = async () => {
   // Pas d'adresse configurée → on ne tente même pas, et on le dit clairement.
   if (!process.env.MONGODB_URI) {

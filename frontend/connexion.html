@@ -432,7 +432,8 @@
           } else if (data.user.role_id === 2) {
             window.location.href = "employe.html";
           } else {
-            window.location.href = "profil.html";
+            // US 6 : si on arrive ici depuis un trajet, on y retourne.
+            window.location.href = pageDeRetour() || "profil.html";
           }
         } catch (err) {
           afficherMessage(
@@ -515,7 +516,28 @@
 
       // ---- Si déjà connecté → rediriger ----
       if (estConnecte()) {
-        window.location.href = "profil.html";
+        window.location.href = pageDeRetour() || "profil.html";
+      }
+
+      // ---- US 6 : la page d'où l'on vient ----
+      // L'adresse ressemble à : connexion.html?retour=detail.html%3Fid%3D12
+      //
+      // SÉCURITÉ : on ne réutilise JAMAIS cette valeur telle quelle.
+      // Sans contrôle, quelqu'un pourrait envoyer un lien
+      // connexion.html?retour=https://site-pirate.com : la personne se
+      // connecterait chez nous puis serait expédiée ailleurs.
+      // Cette faille s'appelle une "redirection ouverte".
+      // On n'accepte donc QUE le nom d'une page de notre site.
+      function pageDeRetour() {
+        const params = new URLSearchParams(window.location.search);
+        const retour = params.get("retour");
+        if (!retour) return null;
+
+        // Format autorisé : "detail.html" ou "detail.html?id=12"
+        const formatAutorise = /^[a-z0-9-]+\.html(\?[a-z0-9=&_-]*)?$/i;
+        if (!formatAutorise.test(retour)) return null;
+
+        return retour;
       }
     </script>
   </body>

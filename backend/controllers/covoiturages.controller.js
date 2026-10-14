@@ -153,86 +153,79 @@ export const getDetail = async (req, res) => {
   }
 };
 
-// ---- PARTICIPER A UN TRAJET ----
-// POST /api/covoiturages/:id/participer  (protégé — faut être connecté)
+// ---- PARTICIPER A UN TRAJET (US 6) ----
+// POST /api/covoiturages/:id/participer   (protégé : il faut être connecté)
+//
+// Tout le travail est fait par la fonction PostgreSQL "reserver_covoiturage"
+// (voir database/fonction_reserver.sql), appelée ici avec supabase.rpc().
+//
+// Pourquoi ? Parce qu'une réservation, c'est 3 écritures qui vont ensemble :
+//   1. créer la participation
+//   2. débiter les crédits de la passagère
+//   3. enlever une place au trajet
+// Avant, ces 3 écritures étaient faites l'une après l'autre depuis Node.
+// Si le serveur tombait entre la 2 et la 3, la passagère était débitée
+// SANS que sa place soit réservée. Dans une fonction PostgreSQL, les 3
+// écritures sont dans une seule transaction : tout passe, ou rien ne passe.
+
+// Les codes renvoyés par la fonction, traduits en message pour la passagère.
+const MESSAGES_RESERVATION = {
+  TRAJET_INTROUVABLE: { code: 404, message: "Ce trajet n'existe pas." },
+  TRAJET_NON_RESERVABLE: { code: 400, message: "Ce trajet n'est plus réservable." },
+  PROPRE_TRAJET: { code: 400, message: "Tu ne peux pas réserver ton propre trajet." },
+  COMPLET: { code: 400, message: "Plus de places disponibles." },
+  DEJA_INSCRIT: { code: 400, message: "Tu participes déjà à ce trajet." },
+  CREDITS_INSUFFISANTS: { code: 400, message: "Crédits insuffisants." },
+  UTILISATEUR_INTROUVABLE: { code: 404, message: "Compte introuvable." },
+};
+
 export const participer = async (req, res) => {
   try {
     const { id } = req.params;
-    const user_id = req.user.user_id;
+    const user_id = req.user.user_id; // vient du jeton, jamais du navigateur
 
-    // On récupère le trajet
-    const { data: trajet, error: trajetError } = await supabase
-      .from("covoiturages")
-      .select("*")
-      .eq("covoiturage_id", id)
-      .single();
-
-    if (trajetError || !trajet) {
-      return res.status(404).json({ message: "Trajet introuvable." });
-    }
-
-    // Vérifications
-    if (trajet.nb_places_restantes <= 0) {
-      return res.status(400).json({ message: "Plus de places disponibles." });
-    }
-    if (trajet.chauffeur_id === user_id) {
-      return res
-        .status(400)
-        .json({ message: "Tu ne peux pas réserver ton propre trajet." });
-    }
-
-    // Vérifier les crédits du passager
-    const { data: passager } = await supabase
-      .from("users")
-      .select("credits")
-      .eq("user_id", user_id)
-      .single();
-
-    if (passager.credits < trajet.prix_par_personne) {
-      return res.status(400).json({ message: "Crédits insuffisants." });
-    }
-
-    // Vérifier qu'il ne participe pas déjà
-    const { data: dejaInscrit } = await supabase
-      .from("participations")
-      .select("participation_id")
-      .eq("covoiturage_id", id)
-      .eq("passager_id", user_id)
-      .single();
-
-    if (dejaInscrit) {
-      return res
-        .status(400)
-        .json({ message: "Tu participes déjà à ce trajet." });
-    }
-
-    // Création de la participation
-    await supabase.from("participations").insert({
-      covoiturage_id: id,
-      passager_id: user_id,
-      credits_utilises: trajet.prix_par_personne,
+    // Un seul appel : la fonction vérifie TOUT puis écrit TOUT, d'un bloc.
+    const { data, error } = await supabase.rpc("reserver_covoiturage", {
+      p_covoiturage_id: Number(id),
+      p_passager_id: user_id,
     });
 
-    // Débit des crédits du passager
-    await supabase
-      .from("users")
-      .update({ credits: passager.credits - trajet.prix_par_personne })
-      .eq("user_id", user_id);
+    if (error) {
+      // La fonction a refusé. Son message contient un code court,
+      // par exemple "COMPLET". On cherche lequel.
+      const codes = Object.keys(MESSAGES_RESERVATION);
+      const trouve = codes.find((c) => error.message.includes(c));
 
-    // Mise à jour des places restantes
-    await supabase
-      .from("covoiturages")
-      .update({ nb_places_restantes: trajet.nb_places_restantes - 1 })
-      .eq("covoiturage_id", id);
+      if (trouve) {
+        const reponse = MESSAGES_RESERVATION[trouve];
+        return res.status(reponse.code).json({ message: reponse.message });
+      }
 
-    // Log MongoDB
-    await Log.create({
-      type: "reservation",
-      user_id,
-      details: `Réservation trajet #${id}`,
+      // Erreur qu'on n'avait pas prévue : on la laisse remonter
+      throw error;
+    }
+
+    // À partir d'ici, la réservation est enregistrée pour de bon.
+    // Le log MongoDB est un BONUS : s'il échoue, la réservation reste valable.
+    // (Avant, une panne de MongoDB faisait répondre "Erreur serveur" alors
+    //  que la passagère avait bien été débitée et sa place réservée.)
+    try {
+      await Log.create({
+        type: "reservation",
+        user_id,
+        pseudo: req.user.pseudo,
+        details: `Réservation trajet #${id}`,
+      });
+    } catch (erreurMongo) {
+      console.log("Log Mongo non enregistré :", erreurMongo.message);
+    }
+
+    res.status(200).json({
+      message: "Participation confirmée !",
+      credits_utilises: data.credits_utilises,
+      credits_restants: data.credits_restants,
+      places_restantes: data.places_restantes,
     });
-
-    res.status(200).json({ message: "Participation confirmée !" });
   } catch (error) {
     console.error("Erreur participation :", error);
     res.status(500).json({ message: "Erreur serveur." });

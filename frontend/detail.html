@@ -61,6 +61,20 @@
           <button id="btn-participer" class="btn btn-vert" style="margin-top: 14px">
             Participer au trajet
           </button>
+          <!-- Explication quand le bouton est désactivé -->
+          <div class="raison-blocage js-raison" hidden></div>
+
+          <!-- US 6 : 2e étape, la confirmation. Cachée au départ. -->
+          <div id="confirmation" class="bloc-confirmation" hidden>
+            <p class="js-texte-confirmation"></p>
+            <div class="boutons">
+              <button id="btn-confirmer" class="btn btn-vert">
+                Oui, je confirme
+              </button>
+              <button id="btn-annuler" class="btn btn-gris">Annuler</button>
+            </div>
+          </div>
+
           <div id="message" style="margin-top: 16px"></div>
         </section>
 
@@ -112,6 +126,10 @@
       // On lit le numéro du trajet dans l'adresse : detail.html?id=12
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
+
+      // On retient le trajet affiché : la confirmation en a besoin
+      // (prix, places) sans refaire un appel au serveur.
+      let trajetAffiche = null;
 
       // Raccourci pour aller chercher un emplacement à remplir
       function dans(classe) {
@@ -183,17 +201,20 @@
         dans("js-horaires").textContent =
           "🕐 " + formatHeure(t.heure_depart) + " → " + formatHeure(t.heure_arrivee);
 
+        // On pose l'état dans les DEUX sens : sinon, lors d'un nouvel
+        // affichage, la pastille resterait visible avec l'ancienne valeur.
         const duree = calculerDureeMinutes(t);
-        if (duree === null) {
-          dans("js-duree").hidden = true;
-        } else {
+        dans("js-duree").hidden = duree === null;
+        if (duree !== null) {
           dans("js-duree").textContent = "⏱ " + formatDuree(duree);
         }
 
         dans("js-places").textContent =
           "👥 " + t.nb_places_restantes + " place(s) restante(s)";
 
-        if (t.est_ecologique) dans("js-eco").hidden = false;
+        // Même précaution : on cache explicitement si le trajet n'est pas
+        // écologique, au lieu de seulement montrer quand il l'est.
+        dans("js-eco").hidden = !t.est_ecologique;
 
         dans("js-adresse-depart").textContent =
           t.adresse_depart || t.ville_depart;
@@ -205,11 +226,53 @@
         unite.textContent = "crédits par personne";
         dans("js-prix").appendChild(unite);
 
-        // Plus de place : le bouton n'a plus de sens
+        trajetAffiche = t;
+        reglerBoutonParticiper(t);
+      }
+
+      // ---- US 6 : le bouton n'est actif que si la réservation est possible ----
+      // Deux conditions : il reste une place ET la passagère a assez de crédits.
+      // C'est du confort : le serveur revérifie tout de toute façon.
+      function reglerBoutonParticiper(t) {
+        const bouton = document.getElementById("btn-participer");
+        const raison = dans("js-raison");
+
+        // On repart d'un bouton neutre : sans ça, un ancien état
+        // ("Complet", désactivé...) resterait d'un affichage à l'autre.
+        bouton.disabled = false;
+        bouton.hidden = false;
+        bouton.textContent = "Participer au trajet";
+        raison.hidden = true;
+        raison.textContent = "";
+        document.getElementById("confirmation").hidden = true;
+
+        // 1) Plus de place
         if (t.nb_places_restantes <= 0) {
-          const bouton = document.getElementById("btn-participer");
           bouton.disabled = true;
           bouton.textContent = "Complet";
+          return;
+        }
+
+        // 2) Pas connectée : on laisse le bouton actif.
+        //    Le clic l'enverra vers la page de connexion.
+        const utilisateur = getUser();
+        if (!utilisateur) return;
+
+        // 3) C'est son propre trajet
+        if (utilisateur.user_id === t.chauffeur_id) {
+          bouton.disabled = true;
+          bouton.textContent = "C'est ton trajet";
+          return;
+        }
+
+        // 4) Pas assez de crédits
+        if (utilisateur.credits < t.prix_par_personne) {
+          bouton.disabled = true;
+          bouton.textContent = "Crédits insuffisants";
+          raison.hidden = false;
+          raison.textContent =
+            "Il te faut " + t.prix_par_personne + " crédits, tu en as " +
+            utilisateur.credits + ".";
         }
       }
 
@@ -316,28 +379,92 @@
         });
       }
 
-      // ---- Participer (US 6) ----
-      async function participer() {
+      // ---- US 6, étape 1 : le clic sur "Participer" ----
+      // Il ne réserve RIEN. Il affiche d'abord le récapitulatif.
+      function participer() {
+        // Pas connectée → on l'envoie se connecter, en gardant l'adresse
+        // de ce trajet pour y revenir juste après.
         if (!estConnecte()) {
-          window.location.href = "connexion.html";
+          const retour = "detail.html?id=" + id;
+          window.location.href =
+            "connexion.html?retour=" + encodeURIComponent(retour);
           return;
         }
 
+        const utilisateur = getUser();
+        const prix = trajetAffiche.prix_par_personne;
+
+        // Le récapitulatif demandé par l'US 6 : combien de crédits,
+        // et combien il en restera après.
+        const texte = dans("js-texte-confirmation");
+        texte.innerHTML = ""; // on repart propre
+
+        const ligne1 = document.createElement("div");
+        ligne1.className = "credits-mis";
+        ligne1.textContent = "Cette réservation utilisera " + prix + " crédits.";
+
+        const ligne2 = document.createElement("div");
+        ligne2.textContent =
+          "Il te restera " + (utilisateur.credits - prix) + " crédits sur " +
+          utilisateur.credits + ".";
+
+        texte.appendChild(ligne1);
+        texte.appendChild(ligne2);
+
+        document.getElementById("confirmation").hidden = false;
+        document.getElementById("btn-participer").hidden = true;
+      }
+
+      // ---- US 6, étape 2 : la confirmation ----
+      // C'est seulement ici qu'on appelle vraiment le serveur.
+      async function confirmerReservation() {
+        const boutonOui = document.getElementById("btn-confirmer");
+        boutonOui.disabled = true; // évite un double clic
+        boutonOui.textContent = "Réservation en cours…";
+
         const zone = document.getElementById("message");
+
         try {
-          const reponse = await apiProtegee("/covoiturages/" + id + "/participer", {
-            method: "POST",
-          });
+          const reponse = await apiProtegee(
+            "/covoiturages/" + id + "/participer",
+            { method: "POST" }
+          );
           const data = await reponse.json();
 
           zone.className = reponse.ok ? "alerte alerte-succes" : "alerte alerte-erreur";
           zone.textContent = data.message;
 
-          if (reponse.ok) window.location.reload();
+          if (reponse.ok) {
+            // Le serveur renvoie les crédits qui restent vraiment :
+            // on met à jour la session pour que le reste du site soit juste.
+            const utilisateur = getUser();
+            utilisateur.credits = data.credits_restants;
+            localStorage.setItem("user", JSON.stringify(utilisateur));
+
+            zone.textContent =
+              data.message + " " + data.credits_utilises +
+              " crédits ont été utilisés, il t'en reste " +
+              data.credits_restants + ".";
+
+            // On recharge pour afficher les places à jour
+            setTimeout(() => window.location.reload(), 1800);
+            return;
+          }
         } catch (erreur) {
           zone.className = "alerte alerte-erreur";
           zone.textContent = "Le serveur ne répond pas.";
         }
+
+        // En cas d'échec : on remet l'écran comme avant
+        annulerConfirmation();
+        boutonOui.disabled = false;
+        boutonOui.textContent = "Oui, je confirme";
+      }
+
+      // ---- Revenir en arrière sans rien réserver ----
+      function annulerConfirmation() {
+        document.getElementById("confirmation").hidden = true;
+        document.getElementById("btn-participer").hidden = false;
       }
 
       // ---- Petits utilitaires d'affichage ----
@@ -383,6 +510,12 @@
       document
         .getElementById("btn-participer")
         .addEventListener("click", participer);
+      document
+        .getElementById("btn-confirmer")
+        .addEventListener("click", confirmerReservation);
+      document
+        .getElementById("btn-annuler")
+        .addEventListener("click", annulerConfirmation);
 
       chargerDetail();
     </script>

@@ -23,6 +23,30 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   );
 }
 
+// Garde-fou n°2 : on vérifie QUELLE clé est utilisée.
+// Supabase fournit deux clés : "anon" (pour les navigateurs, publique) et
+// "service_role" (pour un serveur de confiance, secrète).
+// Notre API vérifie elle-même le JWT et le rôle : c'est la clé "service_role"
+// qu'il lui faut. Avec la clé "anon", le pare-feu RLS de PostgreSQL bloque
+// certaines écritures SANS message clair (ex : impossible d'enregistrer un avis).
+try {
+  // Une clé Supabase est un jeton JWT : sa partie du milieu contient le rôle.
+  const milieu = process.env.SUPABASE_KEY.split(".")[1];
+  const contenu = JSON.parse(Buffer.from(milieu, "base64").toString());
+
+  if (contenu.role !== "service_role") {
+    console.warn(
+      "⚠️ SUPABASE_KEY est une clé « " + contenu.role + " ». " +
+        "Le serveur a besoin de la clé « service_role » " +
+        "(Supabase > Project Settings > API), sinon certaines écritures " +
+        "seront refusées par le RLS."
+    );
+  }
+} catch {
+  // Format de clé inconnu (nouvelles clés sb_secret_... par exemple) :
+  // on ne bloque rien, ce n'est qu'un avertissement.
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY

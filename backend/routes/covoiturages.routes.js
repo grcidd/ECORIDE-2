@@ -9,6 +9,7 @@ import {
   terminer,
   annulerParticipation,
   annulerTrajet,
+  validerTrajet,
 } from "../controllers/covoiturages.controller.js";
 import authMiddleware from "../middleware/auth.middleware.js";
 
@@ -27,6 +28,9 @@ router.delete("/:id/participer", authMiddleware, annulerParticipation); // le pa
 router.delete("/:id", authMiddleware, annulerTrajet);                   // le chauffeur annule
 
 router.patch("/:id/demarrer", authMiddleware, demarrer); // démarrer
-router.patch("/:id/terminer", authMiddleware, terminer); // terminer
+router.patch("/:id/terminer", authMiddleware, terminer);  // arrivée à destination
+
+// US 11 : le passager dit si tout s'est bien passé
+router.post("/:id/valider", authMiddleware, validerTrajet);
 
 export default router;

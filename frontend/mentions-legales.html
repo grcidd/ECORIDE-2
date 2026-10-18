@@ -1,46 +1,273 @@
-# 🌿 EcoRide — Plateforme de covoiturage écologique Application web de
-covoiturage développée dans le cadre du titre professionnel **Développeur Web et
-Web Mobile (DWWM)**. --- ## 🚀 Lancer le projet en local ### Prérequis -
-[Node.js](https://nodejs.org) v18 ou supérieur - Un compte
-[Supabase](https://supabase.com) (gratuit) - Un compte [MongoDB
-Atlas](https://mongodb.com/atlas) (gratuit) --- ### 1. Cloner le projet ```bash
-git clone https://github.com/TON_PSEUDO/ecoride.git cd ecoride ``` --- ### 2.
-Configurer la base de données Supabase 1. Crée un projet sur
-[supabase.com](https://supabase.com) 2. Va dans **SQL Editor** 3. Exécute le
-fichier `database/schema.sql` (création des tables) 4. Exécute le fichier
-`database/seed.sql` (données de test) --- ### 3. Configurer MongoDB Atlas 1.
-Crée un cluster gratuit sur [mongodb.com/atlas](https://www.mongodb.com/atlas)
-2. Crée un utilisateur dans **Database Access** 3. Autorise toutes les IPs dans
-**Network Access** (0.0.0.0/0) 4. Copie l'URI de connexion --- ### 4. Configurer
-les variables d'environnement Dans le dossier `backend/`, crée un fichier `.env`
-: ```env PORT=3000 SUPABASE_URL=https://XXXXXXXX.supabase.co
-SUPABASE_KEY=ta_clé_anon_public
-MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/ecoride
-JWT_SECRET=une_phrase_secrete_tres_longue_ici ``` --- ### 5. Installer les
-dépendances et lancer le back-end ```bash cd backend npm install npm run dev ```
-Le serveur tourne sur : `http://localhost:3000` --- ### 6. Lancer le front-end
-Ouvre le dossier `frontend/` avec **Live Server** (extension VS Code) ou ouvre
-directement `frontend/index.html` dans ton navigateur. --- ## 🔑 Comptes de test
-| Rôle | Email | Mot de passe | |------|-------|--------------| | Administrateur
-| admin@ecoride.fr | Test1234! | | Employé | employe@ecoride.fr | Test1234! | |
-Chauffeur | lisa@test.fr | Test1234! | | Passager | gracie@test.fr | Test1234! |
---- ## 🗂️ Structure du projet ``` ecoride/ ├── frontend/ # Interface utilisateur
-(HTML/CSS/JS) │ ├── index.html │ ├── covoiturages.html │ ├── detail.html │ ├──
-connexion.html │ ├── profil.html │ ├── employe.html │ ├── admin.html │ ├──
-mentions-legales.html │ ├── css/style.css │ └── js/auth.js │ ├── backend/ #
-Serveur Node.js + Express │ ├── server.js │ ├── config/ │ ├── controllers/ │ ├──
-routes/ │ └── middleware/ │ └── database/ # Scripts SQL ├── schema.sql └──
-seed.sql ``` --- ## 🛠️ Stack technique | Couche | Technologie |
-|--------|-------------| | Front-end | HTML5, CSS3, JavaScript vanilla | |
-Back-end | Node.js, Express.js | | BDD relationnelle | PostgreSQL via Supabase |
-| BDD NoSQL | MongoDB Atlas | | Auth | JWT (jsonwebtoken) + bcrypt | |
-Déploiement front | Netlify | | Déploiement back | Render | --- ## 🔐 Sécurité -
-Mots de passe hashés avec bcrypt (salt rounds: 10) - Authentification par token
-JWT (expiration 24h) - Vérification du rôle sur chaque route protégée -
-Validation des champs côté back-end - Comptes suspendus bloqués à la connexion
---- ## 📋 Fonctionnalités - ✅ Page d'accueil avec recherche - ✅ Liste des
-covoiturages avec filtres - ✅ Détail d'un trajet + avis chauffeur - ✅
-Inscription / Connexion - ✅ Espace utilisateur (profil, rôle, véhicule) - ✅
-Proposer un trajet (chauffeur) - ✅ Participer à un trajet (passager) - ✅
-Historique + démarrer/terminer un trajet - ✅ Espace employé (modération des
-avis) - ✅ Espace admin (stats, graphiques, gestion comptes)
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoRide — Mentions légales</title>
+    <link rel="stylesheet" href="css/style.css" />
+
+    <style>
+      .page-legal {
+        padding: 100px 20px 60px;
+        min-height: 100vh;
+        background: var(--gris-fond);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+
+      .legal-container {
+        width: 100%;
+        max-width: 760px;
+        background: white;
+        border-radius: var(--radius);
+        box-shadow: var(--ombre);
+        padding: 40px;
+      }
+
+      .legal-container h1 {
+        font-family: var(--font-titre);
+        font-size: 1.8rem;
+        margin-bottom: 6px;
+      }
+
+      .legal-intro {
+        color: var(--gris-texte);
+        font-size: 0.92rem;
+        margin-bottom: 32px;
+      }
+
+      .legal-container h2 {
+        font-family: var(--font-titre);
+        font-size: 1.15rem;
+        margin: 32px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--gris-bordure);
+      }
+
+      .legal-container p,
+      .legal-container li {
+        font-size: 0.92rem;
+        line-height: 1.65;
+      }
+
+      .legal-container ul {
+        margin: 10px 0 0 20px;
+      }
+
+      .legal-container li {
+        margin-bottom: 6px;
+      }
+
+      .legal-encadre {
+        background: var(--vert-pale, #d8f3dc);
+        border-radius: var(--radius-petit);
+        padding: 14px 16px;
+        font-size: 0.9rem;
+        margin-top: 10px;
+      }
+
+      .legal-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 0.88rem;
+      }
+
+      .legal-table th,
+      .legal-table td {
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--gris-bordure);
+        vertical-align: top;
+      }
+
+      .legal-table th {
+        color: var(--gris-texte);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <a href="index.html" class="logo">EcoRide</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="covoiturages.html">Covoiturages</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="profil.html" class="btn btn-vert">Mon espace</a>
+      </div>
+    </nav>
+
+    <!-- PAGE -->
+    <div class="page-legal">
+      <div class="legal-container">
+        <h1>Mentions légales</h1>
+        <p class="legal-intro">Dernière mise à jour : octobre 2026</p>
+
+        <div class="legal-encadre">
+          <strong>Projet pédagogique.</strong> EcoRide est une application
+          réalisée dans le cadre du titre professionnel Développeur Web et Web
+          Mobile. Ce n'est pas un service commercial : aucun trajet n'est
+          réellement effectué, aucun paiement réel n'est encaissé, et les
+          « crédits » affichés n'ont aucune valeur monétaire.
+        </div>
+
+        <h2>Éditeur du site</h2>
+        <p>
+          Le site est édité par <strong>Grace Douré</strong>, étudiant(e) en
+          développement web.
+        </p>
+        <table class="legal-table">
+          <tr>
+            <th>Responsable de publication</th>
+            <td>Grace Douré</td>
+          </tr>
+          <tr>
+            <th>Contact</th>
+            <td>grcidd25@gmail.com</td>
+          </tr>
+          <tr>
+            <th>Statut</th>
+            <td>Projet étudiant, sans activité commerciale</td>
+          </tr>
+        </table>
+
+        <h2>Hébergement</h2>
+        <p>
+          L'application s'appuie sur quatre prestataires, chacun pour une partie
+          différente du service :
+        </p>
+        <table class="legal-table">
+          <tr>
+            <th>Site web (front-end)</th>
+            <td>
+              Netlify, Inc. — 512 2nd Street, Suite 200, San Francisco, CA
+              94107, États-Unis —
+              <a href="https://www.netlify.com" target="_blank" rel="noopener"
+                >netlify.com</a
+              >
+            </td>
+          </tr>
+          <tr>
+            <th>Serveur applicatif</th>
+            <td>
+              Render Services, Inc. — 525 Brannan Street, San Francisco, CA
+              94107, États-Unis —
+              <a href="https://render.com" target="_blank" rel="noopener"
+                >render.com</a
+              >
+            </td>
+          </tr>
+          <tr>
+            <th>Base de données relationnelle</th>
+            <td>
+              Supabase, Inc. (PostgreSQL) —
+              <a href="https://supabase.com" target="_blank" rel="noopener"
+                >supabase.com</a
+              >
+            </td>
+          </tr>
+          <tr>
+            <th>Base de données NoSQL</th>
+            <td>
+              MongoDB, Inc. (MongoDB Atlas) —
+              <a href="https://www.mongodb.com" target="_blank" rel="noopener"
+                >mongodb.com</a
+              >
+            </td>
+          </tr>
+        </table>
+
+        <h2>Données personnelles</h2>
+        <p>
+          Créer un compte sur EcoRide suppose de transmettre quelques
+          informations. Voici lesquelles, et pourquoi.
+        </p>
+        <table class="legal-table">
+          <tr>
+            <th>Donnée</th>
+            <th>Pourquoi</th>
+          </tr>
+          <tr>
+            <td>Pseudo et adresse e-mail</td>
+            <td>identifier le compte et permettre la connexion</td>
+          </tr>
+          <tr>
+            <td>Mot de passe</td>
+            <td>
+              jamais conservé en clair : il est chiffré avec bcrypt, et il est
+              impossible de le retrouver à partir de ce qui est stocké
+            </td>
+          </tr>
+          <tr>
+            <td>Trajets, réservations, avis</td>
+            <td>faire fonctionner le covoiturage</td>
+          </tr>
+          <tr>
+            <td>Journal des connexions et des actions</td>
+            <td>
+              sécurité et suivi technique (stocké dans MongoDB, sans mot de
+              passe)
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin-top: 14px">
+          Ces données ne sont ni vendues, ni transmises à des tiers à des fins
+          publicitaires. Les données de test sont conservées le temps du projet.
+          Toute personne peut demander la suppression de son compte par e-mail,
+          à l'adresse indiquée ci-dessous.
+        </p>
+
+        <h2>Vos droits</h2>
+        <p>
+          Conformément au Règlement général sur la protection des données
+          (RGPD), vous pouvez à tout moment demander :
+        </p>
+        <ul>
+          <li>à consulter les données enregistrées à votre sujet ;</li>
+          <li>à les faire corriger si elles sont inexactes ;</li>
+          <li>à les faire supprimer, ainsi que votre compte ;</li>
+          <li>à vous opposer à leur traitement.</li>
+        </ul>
+        <p style="margin-top: 14px">
+          Il suffit d'écrire à <strong>grcidd25@gmail.com</strong>. La
+          demande sera traitée dans un délai d'un mois. En cas de désaccord,
+          vous pouvez saisir la CNIL —
+          <a href="https://www.cnil.fr" target="_blank" rel="noopener"
+            >cnil.fr</a
+          >.
+        </p>
+
+        <h2>Cookies et stockage local</h2>
+        <p>
+          EcoRide ne dépose aucun cookie publicitaire et n'utilise aucun outil
+          de mesure d'audience. Le site conserve uniquement, dans le stockage
+          local de votre navigateur, le jeton de connexion qui vous évite de
+          saisir votre mot de passe à chaque page. Il disparaît dès que vous
+          vous déconnectez.
+        </p>
+
+        <h2>Propriété intellectuelle</h2>
+        <p>
+          Le code source et le contenu de ce site ont été réalisés par
+          l'éditeur dans un cadre pédagogique. Les noms Netlify, Render,
+          Supabase et MongoDB appartiennent à leurs sociétés respectives.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          Pour toute question sur ce site ou sur vos données :
+          <strong>grcidd25@gmail.com</strong>, ou via la
+          <a href="contact.html">page de contact</a>.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

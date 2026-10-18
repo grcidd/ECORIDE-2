@@ -225,6 +225,22 @@
         font-weight: 700;
         margin-left: 6px;
       }
+
+      /* Pastille « En attente » sur un signalement.
+         Mêmes règles que dans profil.html, pour garder le même look partout. */
+      .statut-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .statut-planifie {
+        background: #eef2ff;
+        color: #3730a3;
+      }
     </style>
   </head>
   <body>
@@ -316,194 +332,279 @@
       }
 
       // ---- Charger les avis ----
+      // ---- Petit outil : fabriquer un élément avec du texte, sans risque ----
+      // textContent met le texte TEL QUEL : même si une passagère écrit
+      // <script>, ça s'affiche comme du texte et ne s'exécute jamais.
+      // (innerHTML, lui, exécuterait le code : c'est la faille XSS.)
+      function elem(balise, classe, texte) {
+        const e = document.createElement(balise);
+        if (classe) e.className = classe;
+        if (texte !== undefined) e.textContent = texte;
+        return e;
+      }
+
+      function zoneVide(icone, titre, sousTitre) {
+        const d = elem("div", "zone-vide");
+        d.appendChild(elem("div", "icone", icone));
+        d.appendChild(elem("h3", null, titre));
+        if (sousTitre) d.appendChild(elem("p", null, sousTitre));
+        return d;
+      }
+
+      // ---- Charger les avis en attente de modération ----
       async function chargerAvis() {
+        const liste = document.getElementById("liste-avis");
         try {
           const rep = await apiProtegee("/admin/avis");
           const data = await rep.json();
           const avis = data.avis || [];
 
           document.getElementById("compteur-avis").textContent = avis.length;
+          liste.innerHTML = "";
 
           if (avis.length === 0) {
-            document.getElementById("liste-avis").innerHTML = `
-                    <div class="zone-vide">
-                        <div class="icone">✅</div>
-                        <h3>Aucun avis en attente</h3>
-                        <p>Tous les avis ont été traités.</p>
-                    </div>`;
+            liste.appendChild(
+              zoneVide("✅", "Aucun avis en attente", "Tous les avis ont été traités.")
+            );
             return;
           }
 
-          document.getElementById("liste-avis").innerHTML = avis
-            .map(
-              (a) => `
-                <div class="carte-avis" id="avis-${a.avis_id}">
-                    <div>
-                        <div class="avis-meta">
-                            De <strong>${a.passager?.pseudo || "?"}</strong>
-                            sur le chauffeur <strong>${
-                              a.chauffeur?.pseudo || "?"
-                            }</strong>
-                            · ${
-                              a.covoiturage
-                                ? `${a.covoiturage.ville_depart} → ${a.covoiturage.ville_arrivee}`
-                                : ""
-                            }
-                            · ${formatDate(a.created_at)}
-                        </div>
-                        <div class="avis-etoiles">${"⭐".repeat(
-                          a.note || 0
-                        )}</div>
-                        <div class="avis-contenu">"${
-                          a.commentaire || "Aucun commentaire."
-                        }"</div>
-                    </div>
-                    <div class="avis-actions">
-                        <button class="btn-valider" onclick="traiterAvis(${
-                          a.avis_id
-                        }, 'valide')">
-                            ✅ Valider
-                        </button>
-                        <button class="btn-refuser" onclick="traiterAvis(${
-                          a.avis_id
-                        }, 'refuse')">
-                            ❌ Refuser
-                        </button>
-                    </div>
-                </div>`
-            )
-            .join("");
-        } catch (err) {
-          document.getElementById("liste-avis").innerHTML =
-            '<div class="alerte alerte-erreur">Impossible de charger les avis.</div>';
+          avis.forEach((a) => liste.appendChild(creerCarteAvis(a)));
+        } catch {
+          liste.innerHTML = "";
+          liste.appendChild(
+            elem("div", "alerte alerte-erreur", "Impossible de charger les avis.")
+          );
         }
       }
 
-      // ---- Traiter un avis ----
+      // Construit la carte d'UN avis.
+      function creerCarteAvis(a) {
+        const carte = elem("div", "carte-avis");
+        carte.id = "avis-" + a.avis_id;
+
+        const gauche = elem("div");
+
+        // Ligne « De X sur le chauffeur Y · Ville → Ville · date »
+        const trajet = a.covoiturage
+          ? " · " + a.covoiturage.ville_depart + " → " + a.covoiturage.ville_arrivee
+          : "";
+        gauche.appendChild(
+          elem(
+            "div",
+            "avis-meta",
+            "De " + (a.passager?.pseudo || "?") +
+              " sur le chauffeur " + (a.chauffeur?.pseudo || "?") +
+              trajet + " · " + formatDate(a.created_at)
+          )
+        );
+
+        gauche.appendChild(elem("div", "avis-etoiles", "⭐".repeat(a.note || 0)));
+        // Le commentaire vient d'une passagère : textContent, jamais innerHTML.
+        gauche.appendChild(
+          elem("div", "avis-contenu", "« " + (a.commentaire || "Aucun commentaire.") + " »")
+        );
+        carte.appendChild(gauche);
+
+        const actions = elem("div", "avis-actions");
+
+        const valider = elem("button", "btn-valider", "✅ Valider");
+        valider.addEventListener("click", () => traiterAvis(a.avis_id, "valider"));
+        actions.appendChild(valider);
+
+        const refuser = elem("button", "btn-refuser", "❌ Refuser");
+        refuser.addEventListener("click", () => traiterAvis(a.avis_id, "refuser"));
+        actions.appendChild(refuser);
+
+        carte.appendChild(actions);
+        return carte;
+      }
+
+      // ---- Valider ou refuser un avis ----
+      // action vaut "valider" ou "refuser" : c'est le nom de la route.
       async function traiterAvis(id, action) {
         try {
-          const rep = await apiProtegee(`/admin/avis/${id}`, {
+          const rep = await apiProtegee(`/admin/avis/${id}/${action}`, {
             method: "PATCH",
-            body: JSON.stringify({ action }),
           });
           const data = await rep.json();
 
-          if (rep.ok) {
-            // Supprimer la carte de l'interface
-            document.getElementById(`avis-${id}`)?.remove();
-            const compteur = document.getElementById("compteur-avis");
-            compteur.textContent = Math.max(
-              0,
-              parseInt(compteur.textContent) - 1
-            );
-
-            // Si plus d'avis, afficher message vide
-            if (document.getElementById("liste-avis").children.length === 0) {
-              document.getElementById("liste-avis").innerHTML = `
-                        <div class="zone-vide">
-                            <div class="icone">✅</div>
-                            <h3>Aucun avis en attente</h3>
-                        </div>`;
-            }
-          } else {
+          if (!rep.ok) {
             alert(data.message);
+            return;
+          }
+
+          document.getElementById("avis-" + id)?.remove();
+
+          const compteur = document.getElementById("compteur-avis");
+          compteur.textContent = Math.max(0, parseInt(compteur.textContent) - 1);
+
+          const liste = document.getElementById("liste-avis");
+          if (liste.children.length === 0) {
+            liste.appendChild(
+              zoneVide("✅", "Aucun avis en attente", "Tous les avis ont été traités.")
+            );
           }
         } catch {
           alert("Erreur serveur.");
         }
       }
 
-      // ---- Charger les signalements ----
+      // ---- US 12 : charger les signalements à traiter ----
+      // Ces données viennent de PostgreSQL (participations), pas de MongoDB :
+      // c'est là que vit l'argent du chauffeur (colonne credits_verses).
       async function chargerSignalements() {
+        const liste = document.getElementById("liste-signalements");
         try {
           const rep = await apiProtegee("/admin/signalements");
           const data = await rep.json();
           const sigs = data.signalements || [];
 
           document.getElementById("compteur-sig").textContent = sigs.length;
+          liste.innerHTML = "";
 
           if (sigs.length === 0) {
-            document.getElementById("liste-signalements").innerHTML = `
-                    <div class="zone-vide">
-                        <div class="icone">🎉</div>
-                        <h3>Aucun signalement en attente</h3>
-                        <p>Tout se passe bien sur EcoRide !</p>
-                    </div>`;
+            liste.appendChild(
+              zoneVide("🎉", "Aucun signalement en attente", "Tout se passe bien sur EcoRide !")
+            );
             return;
           }
 
-          document.getElementById("liste-signalements").innerHTML = sigs
-            .map(
-              (s) => `
-                <div class="carte-signalement" id="sig-${s._id}">
-                    <div class="signalement-header">
-                        <div>
-                            <div class="signalement-trajet">
-                                #${s.covoiturage?.covoiturage_id || "?"} ·
-                                ${
-                                  s.covoiturage
-                                    ? `${s.covoiturage.ville_depart} → ${s.covoiturage.ville_arrivee}`
-                                    : "—"
-                                }
-                            </div>
-                            <div style="font-size:0.82rem; color:var(--gris-texte); margin-top:2px">
-                                📅 ${formatDate(
-                                  s.covoiturage?.date_depart
-                                )} · Signalé le ${formatDate(s.date)}
-                            </div>
-                        </div>
-                        <span class="statut-badge statut-planifie">En attente</span>
-                    </div>
-
-                    <div class="signalement-grid">
-                        <div class="signalement-personne">
-                            <strong>🎒 Passager</strong>
-                            ${s.passager?.pseudo || "?"}<br>
-                            <a href="mailto:${
-                              s.passager?.email
-                            }" style="color:var(--vert-principal); font-size:0.8rem">
-                                ${s.passager?.email || ""}
-                            </a>
-                        </div>
-                        <div class="signalement-personne">
-                            <strong>🚗 Chauffeur</strong>
-                            ${s.chauffeur?.pseudo || "?"}<br>
-                            <a href="mailto:${
-                              s.chauffeur?.email
-                            }" style="color:var(--vert-principal); font-size:0.8rem">
-                                ${s.chauffeur?.email || ""}
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="signalement-commentaire">
-                        💬 "${s.commentaire || "Aucun détail fourni."}"
-                    </div>
-
-                    <button class="btn btn-vert" style="padding:10px 20px; font-size:0.85rem"
-                        onclick="marquerTraite('${s._id}')">
-                        ✅ Marquer comme traité
-                    </button>
-                </div>`
-            )
-            .join("");
-        } catch (err) {
-          document.getElementById("liste-signalements").innerHTML =
-            '<div class="alerte alerte-erreur">Impossible de charger les signalements.</div>';
+          sigs.forEach((s) => liste.appendChild(creerCarteSignalement(s)));
+        } catch {
+          liste.innerHTML = "";
+          liste.appendChild(
+            elem("div", "alerte alerte-erreur", "Impossible de charger les signalements.")
+          );
         }
       }
 
-      async function marquerTraite(id) {
+      // Construit la carte d'UN signalement.
+      function creerCarteSignalement(s) {
+        const trajet = s.covoiturage || {};
+        const chauffeur = trajet.chauffeur || {};
+        const gain = (trajet.prix_par_personne || 0) - (trajet.credits_plateforme || 0);
+
+        const carte = elem("div", "carte-signalement");
+        carte.id = "sig-" + s.participation_id;
+
+        // --- En-tête : le trajet concerné ---
+        const entete = elem("div", "signalement-header");
+        const infos = elem("div");
+        infos.appendChild(
+          elem(
+            "div",
+            "signalement-trajet",
+            "#" + (trajet.covoiturage_id || "?") + " · " +
+              (trajet.ville_depart || "—") + " → " + (trajet.ville_arrivee || "—")
+          )
+        );
+        const dates = elem(
+          "div",
+          null,
+          "📅 " + formatDate(trajet.date_depart) + " · Signalé le " + formatDate(s.valide_le)
+        );
+        dates.style.cssText = "font-size:0.82rem; color:var(--gris-texte); margin-top:2px";
+        infos.appendChild(dates);
+        entete.appendChild(infos);
+        entete.appendChild(elem("span", "statut-badge statut-planifie", "En attente"));
+        carte.appendChild(entete);
+
+        // --- Les deux personnes concernées ---
+        const grille = elem("div", "signalement-grid");
+        grille.appendChild(bloc("🎒 Passager", s.passager?.pseudo, s.passager?.email));
+        grille.appendChild(bloc("🚗 Chauffeur", chauffeur.pseudo, chauffeur.email));
+        carte.appendChild(grille);
+
+        // --- Ce que la passagère a écrit (texte libre : textContent obligatoire) ---
+        carte.appendChild(
+          elem(
+            "div",
+            "signalement-commentaire",
+            "💬 « " + (s.commentaire_probleme || "Aucun détail fourni.") + " »"
+          )
+        );
+
+        // --- Rappel de ce qui est en jeu ---
+        const enjeu = elem(
+          "div",
+          null,
+          "💰 " + gain + " crédits sont bloqués : le chauffeur n'a pas été payé pour ce trajet."
+        );
+        enjeu.style.cssText =
+          "font-size:0.85rem; color:var(--gris-texte); margin:10px 0";
+        carte.appendChild(enjeu);
+
+        // --- Les deux décisions possibles ---
+        const actions = elem("div");
+        actions.style.cssText = "display:flex; gap:10px; flex-wrap:wrap";
+
+        const payer = elem("button", "btn btn-vert", "✅ Payer le chauffeur");
+        payer.style.cssText = "padding:10px 20px; font-size:0.85rem";
+        payer.addEventListener("click", () =>
+          trancherSignalement(s.participation_id, true, chauffeur.pseudo, gain)
+        );
+        actions.appendChild(payer);
+
+        const confirmer = elem("button", "btn btn-danger", "⚠️ Confirmer le problème");
+        confirmer.style.cssText = "padding:10px 20px; font-size:0.85rem";
+        confirmer.addEventListener("click", () =>
+          trancherSignalement(s.participation_id, false, chauffeur.pseudo, gain)
+        );
+        actions.appendChild(confirmer);
+
+        carte.appendChild(actions);
+        return carte;
+      }
+
+      // Petit bloc « rôle / pseudo / email » dans la carte d'un signalement.
+      function bloc(titre, pseudo, email) {
+        const d = elem("div", "signalement-personne");
+        d.appendChild(elem("strong", null, titre));
+        d.appendChild(document.createElement("br"));
+        d.appendChild(document.createTextNode(pseudo || "?"));
+        if (email) {
+          d.appendChild(document.createElement("br"));
+          const a = document.createElement("a");
+          a.href = "mailto:" + email;
+          a.style.cssText = "color:var(--vert-principal); font-size:0.8rem";
+          a.textContent = email;
+          d.appendChild(a);
+        }
+        return d;
+      }
+
+      // ---- US 12 : l'employé tranche ----
+      // crediter = true  → le chauffeur est enfin payé
+      // crediter = false → le chauffeur ne sera jamais payé pour ce trajet
+      async function trancherSignalement(id, crediter, pseudoChauffeur, gain) {
+        const question = crediter
+          ? `Payer ${gain} crédits à ${pseudoChauffeur || "ce chauffeur"} ?`
+          : `Confirmer le problème ? ${pseudoChauffeur || "Ce chauffeur"} ne sera pas payé.`;
+        if (!confirm(question)) return;
+
         try {
           const rep = await apiProtegee(`/admin/signalements/${id}`, {
             method: "PATCH",
+            body: JSON.stringify({ crediter }),
           });
-          if (rep.ok) {
-            document.getElementById(`sig-${id}`)?.remove();
-            const compteur = document.getElementById("compteur-sig");
-            compteur.textContent = Math.max(
-              0,
-              parseInt(compteur.textContent) - 1
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            alert(data.message);
+            return;
+          }
+
+          alert(data.message);
+          document.getElementById("sig-" + id)?.remove();
+
+          const compteur = document.getElementById("compteur-sig");
+          compteur.textContent = Math.max(0, parseInt(compteur.textContent) - 1);
+
+          const liste = document.getElementById("liste-signalements");
+          if (liste.children.length === 0) {
+            liste.appendChild(
+              zoneVide("🎉", "Aucun signalement en attente", "Tout se passe bien sur EcoRide !")
             );
           }
         } catch {

@@ -37,6 +37,17 @@ Si on lisait la liste dans MongoDB et que MongoDB tombait, l'employé ne verrait
 plus les signalements et les chauffeurs ne seraient jamais payés.
 En lisant PostgreSQL, l'écran fonctionne tant que la base principale fonctionne.
 
+### Et MongoDB dans tout ça ?
+
+Quand une passagère signale un problème (US 11), l'application écrit le
+signalement **dans les deux bases** : PostgreSQL (source de vérité) et MongoDB
+(historique NoSQL). Quand l'employé tranche, `traiterSignalement` met aussi à
+jour la copie MongoDB (`statut` passe de `en_attente` à `traite`).
+
+Cette écriture MongoDB est dans un `try/catch` qui laisse passer : si MongoDB
+est injoignable, la décision et le paiement sont **déjà** enregistrés dans
+PostgreSQL. On ne bloque jamais une opération d'argent pour un historique.
+
 ## 4. La fonction principale, ligne par ligne
 
 ```sql

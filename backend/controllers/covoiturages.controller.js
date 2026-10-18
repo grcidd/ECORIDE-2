@@ -706,7 +706,9 @@ export const validerTrajet = async (req, res) => {
     // --- Un problème a été signalé ---
     // Le chauffeur N'EST PAS payé : c'est déjà garanti par la base
     // (credits_verses reste à false). On enregistre en plus le signalement
-    // dans MongoDB, qui alimentera l'espace employé (US 12).
+    // dans MongoDB. Attention : l'espace employé (US 12) ne lit PAS cette
+    // copie, il lit PostgreSQL — c'est là que vit l'argent. MongoDB sert
+    // d'historique NoSQL, il peut tomber sans bloquer quoi que ce soit.
     let signalementEnregistre = false;
     try {
       await Signalement.create({

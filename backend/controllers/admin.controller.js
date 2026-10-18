@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import { Signalement } from "../config/models.mongo.js";
 
 // ============================================
 // Traduction des codes d'erreur de la base en phrases françaises.
@@ -119,6 +120,27 @@ export const traiterSignalement = async (req, res) => {
     if (error) {
       if (traduireErreurSignalement(error, res)) return;
       throw error;
+    }
+
+    // On reflète la décision dans MongoDB, pour que la copie du signalement
+    // ne reste pas éternellement « en_attente ».
+    // PostgreSQL reste la source de vérité : si MongoDB est injoignable,
+    // la décision et le paiement sont déjà enregistrés, on ne bloque rien.
+    try {
+      const { data: part } = await supabase
+        .from("participations")
+        .select("covoiturage_id, passager_id")
+        .eq("participation_id", Number(id))
+        .single();
+
+      if (part) {
+        await Signalement.updateOne(
+          { covoiturage_id: part.covoiturage_id, passager_id: part.passager_id },
+          { statut: "traite" }
+        );
+      }
+    } catch (erreurMongo) {
+      console.error("⚠️ Statut non mis à jour dans MongoDB :", erreurMongo.message);
     }
 
     if (data.decision === "credite") {

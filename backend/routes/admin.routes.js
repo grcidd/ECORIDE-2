@@ -12,6 +12,8 @@ import {
   getAvisEnAttente,
   validerAvis,
   refuserAvis,
+  getSignalements,
+  traiterSignalement,
   getUtilisateurs,
   suspendreUtilisateur,
   getStats,
@@ -29,6 +31,12 @@ const ADMIN_SEUL = [ROLES.ADMIN];
 router.get("/avis", authMiddleware, checkRole(EMPLOYE_OU_ADMIN), getAvisEnAttente);
 router.patch("/avis/:id/valider", authMiddleware, checkRole(EMPLOYE_OU_ADMIN), validerAvis);
 router.patch("/avis/:id/refuser", authMiddleware, checkRole(EMPLOYE_OU_ADMIN), refuserAvis);
+
+// --- US 12 : signalements (espace employé) ---
+// La liste vient de PostgreSQL : c'est là que vit l'argent du chauffeur.
+router.get("/signalements", authMiddleware, checkRole(EMPLOYE_OU_ADMIN), getSignalements);
+// Trancher : { crediter: true } paie le chauffeur, { crediter: false } ne le paie pas.
+router.patch("/signalements/:id", authMiddleware, checkRole(EMPLOYE_OU_ADMIN), traiterSignalement);
 
 // --- Gestion des comptes et statistiques (espace admin) ---
 router.get("/utilisateurs", authMiddleware, checkRole(ADMIN_SEUL), getUtilisateurs);

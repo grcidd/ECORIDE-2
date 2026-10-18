@@ -20,115 +20,454 @@
       </div>
     </nav>
 
-    <main style="padding: 120px 24px 60px; max-width: 900px; margin: auto">
+    <main style="padding: 120px 24px 60px; max-width: 760px; margin: auto">
       <a href="covoiturages.html" style="color: var(--vert-principal)">
         ← Retour aux covoiturages
       </a>
 
-      <section class="carte-blanche" style="margin-top: 24px">
-        <h1 id="trajet-titre">Chargement du trajet...</h1>
+      <!-- Tout est caché au départ : on l'affiche une fois les données reçues -->
+      <div id="contenu" hidden>
+        <!-- BLOC 1 : le trajet -->
+        <section class="bloc-detail">
+          <div class="carte-chauffeur">
+            <div class="avatar js-avatar"></div>
+            <div>
+              <div class="chauffeur-nom js-pseudo"></div>
+              <div class="note-etoiles js-note"></div>
+            </div>
+          </div>
 
-        <div id="trajet-detail" style="margin-top: 24px"></div>
+          <h1 class="trajet-titre js-trajet" style="margin-top: 16px"></h1>
 
-        <button
-          id="btn-participer"
-          class="btn btn-vert"
-          style="margin-top: 24px"
-        >
-          Participer au trajet
-        </button>
+          <div class="trajet-infos" style="margin-top: 14px">
+            <div class="trajet-info-item js-date"></div>
+            <div class="trajet-info-item js-horaires"></div>
+            <div class="trajet-info-item js-duree"></div>
+            <div class="trajet-info-item js-places"></div>
+            <span class="badge-eco js-eco" hidden>🌱 Écologique</span>
+          </div>
 
-        <div id="message" style="margin-top: 20px"></div>
+          <div class="ligne-info" style="margin-top: 14px">
+            <span class="etiquette">Départ</span>
+            <span class="valeur js-adresse-depart"></span>
+          </div>
+          <div class="ligne-info">
+            <span class="etiquette">Arrivée</span>
+            <span class="valeur js-adresse-arrivee"></span>
+          </div>
+
+          <div class="prix-detail js-prix" style="margin-top: 18px"></div>
+
+          <button id="btn-participer" class="btn btn-vert" style="margin-top: 14px">
+            Participer au trajet
+          </button>
+          <!-- Explication quand le bouton est désactivé -->
+          <div class="raison-blocage js-raison" hidden></div>
+
+          <!-- US 6 : 2e étape, la confirmation. Cachée au départ. -->
+          <div id="confirmation" class="bloc-confirmation" hidden>
+            <p class="js-texte-confirmation"></p>
+            <div class="boutons">
+              <button id="btn-confirmer" class="btn btn-vert">
+                Oui, je confirme
+              </button>
+              <button id="btn-annuler" class="btn btn-gris">Annuler</button>
+            </div>
+          </div>
+
+          <div id="message" style="margin-top: 16px"></div>
+        </section>
+
+        <!-- BLOC 2 : le véhicule (US 5) -->
+        <section class="bloc-detail">
+          <h2>🚗 Le véhicule</h2>
+          <div class="ligne-info">
+            <span class="etiquette">Marque</span><span class="valeur js-marque"></span>
+          </div>
+          <div class="ligne-info">
+            <span class="etiquette">Modèle</span><span class="valeur js-modele"></span>
+          </div>
+          <div class="ligne-info">
+            <span class="etiquette">Couleur</span><span class="valeur js-couleur"></span>
+          </div>
+          <div class="ligne-info">
+            <span class="etiquette">Énergie</span><span class="valeur js-energie"></span>
+          </div>
+        </section>
+
+        <!-- BLOC 3 : les préférences du conducteur (US 5) -->
+        <section class="bloc-detail">
+          <h2>💬 Les préférences du conducteur</h2>
+          <div class="liste-preferences js-preferences"></div>
+        </section>
+
+        <!-- BLOC 4 : les avis VALIDÉS (US 5) -->
+        <section class="bloc-detail">
+          <h2 class="js-titre-avis">⭐ Les avis</h2>
+          <div class="js-avis"></div>
+        </section>
+      </div>
+
+      <!-- Message de chargement ou d'erreur -->
+      <section class="bloc-detail" id="etat">
+        <p id="etat-texte">Chargement du trajet…</p>
       </section>
     </main>
 
+    <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
+      // ============================================
+      // US 5 — Détail d'un covoiturage
+      // Règle : tout ce qui vient de la base est posé avec textContent,
+      // jamais avec innerHTML (protection contre les failles XSS).
+      // ============================================
+
+      // On lit le numéro du trajet dans l'adresse : detail.html?id=12
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
 
+      // On retient le trajet affiché : la confirmation en a besoin
+      // (prix, places) sans refaire un appel au serveur.
+      let trajetAffiche = null;
+
+      // Raccourci pour aller chercher un emplacement à remplir
+      function dans(classe) {
+        return document.querySelector("." + classe);
+      }
+
+      // Affiche un message à la place du contenu (chargement ou erreur)
+      function afficherEtat(texte) {
+        document.getElementById("etat").hidden = false;
+        document.getElementById("etat-texte").textContent = texte;
+      }
+
+      // ---- Charger et afficher le trajet ----
       async function chargerDetail() {
         if (!id) {
-          document.getElementById("trajet-titre").textContent =
-            "Trajet introuvable";
+          afficherEtat("Trajet introuvable : aucun numéro dans l'adresse.");
           return;
         }
 
         try {
-          const rep = await fetch(`${API}/covoiturages/${id}`);
-          const data = await rep.json();
+          const reponse = await apiPublique("/covoiturages/" + id);
+          const data = await reponse.json();
 
-          if (!rep.ok) {
-            document.getElementById("trajet-titre").textContent =
-              data.message || "Erreur de chargement";
+          if (!reponse.ok) {
+            afficherEtat(data.message || "Erreur de chargement.");
             return;
           }
 
-          const trajet = data.trajet;
+          remplirTrajet(data.trajet, data.note_moyenne);
+          remplirVehicule(data.trajet.vehicule);
+          remplirPreferences(data.preferences, data.preferences_perso);
+          remplirAvis(data.avis);
 
-          document.getElementById(
-            "trajet-titre"
-          ).textContent = `${trajet.ville_depart} → ${trajet.ville_arrivee}`;
-
-          document.getElementById("trajet-detail").innerHTML = `
-            <p><strong>Date :</strong> ${formatDate(trajet.date_depart)}</p>
-            <p><strong>Heure de départ :</strong> ${trajet.heure_depart}</p>
-            <p><strong>Prix :</strong> ${trajet.prix_par_personne} crédits</p>
-            <p><strong>Places restantes :</strong> ${
-              trajet.nb_places_restantes
-            }</p>
-            <p><strong>Chauffeur :</strong> ${
-              trajet.chauffeur?.pseudo || "Non renseigné"
-            }</p>
-            <p><strong>Véhicule :</strong> ${
-              trajet.vehicule
-                ? `${trajet.vehicule.marque} ${trajet.vehicule.modele}`
-                : "Non renseigné"
-            }</p>
-            <p><strong>Énergie :</strong> ${
-              trajet.vehicule?.energie || "Non renseignée"
-            }</p>
-            <p><strong>Écologique :</strong> ${
-              trajet.est_ecologique ? "Oui 🌱" : "Non"
-            }</p>
-          `;
-        } catch (error) {
-          document.getElementById("trajet-titre").textContent =
-            "Erreur serveur.";
+          // Tout est prêt : on montre le contenu et on cache le message
+          document.getElementById("etat").hidden = true;
+          document.getElementById("contenu").hidden = false;
+        } catch (erreur) {
+          afficherEtat("Le serveur ne répond pas. Réessaie dans un instant.");
         }
       }
 
-      async function participer() {
-        if (!estConnecte()) {
-          window.location.href = "connexion.html";
+      // ---- Le trajet et son chauffeur ----
+      function remplirTrajet(t, noteMoyenne) {
+        const chauffeur = t.chauffeur || {};
+        const pseudo = chauffeur.pseudo || "Chauffeur";
+
+        document.title = "EcoRide — " + t.ville_depart + " → " + t.ville_arrivee;
+
+        dans("js-pseudo").textContent = pseudo;
+
+        dans("js-avatar").innerHTML = ""; // on repart d'un avatar vide
+        if (chauffeur.photo) {
+          const image = document.createElement("img");
+          image.src = chauffeur.photo;
+          image.alt = pseudo;
+          dans("js-avatar").appendChild(image);
+        } else {
+          dans("js-avatar").textContent = pseudo[0].toUpperCase();
+        }
+
+        if (noteMoyenne) {
+          dans("js-note").textContent = "⭐ " + noteMoyenne + " / 5";
+        } else {
+          dans("js-note").textContent = "⭐ Nouveau chauffeur";
+        }
+
+        dans("js-trajet").textContent = t.ville_depart + " → " + t.ville_arrivee;
+        dans("js-date").textContent = "📅 " + formatDate(t.date_depart);
+        dans("js-horaires").textContent =
+          "🕐 " + formatHeure(t.heure_depart) + " → " + formatHeure(t.heure_arrivee);
+
+        // On pose l'état dans les DEUX sens : sinon, lors d'un nouvel
+        // affichage, la pastille resterait visible avec l'ancienne valeur.
+        const duree = calculerDureeMinutes(t);
+        dans("js-duree").hidden = duree === null;
+        if (duree !== null) {
+          dans("js-duree").textContent = "⏱ " + formatDuree(duree);
+        }
+
+        dans("js-places").textContent =
+          "👥 " + t.nb_places_restantes + " place(s) restante(s)";
+
+        // Même précaution : on cache explicitement si le trajet n'est pas
+        // écologique, au lieu de seulement montrer quand il l'est.
+        dans("js-eco").hidden = !t.est_ecologique;
+
+        dans("js-adresse-depart").textContent =
+          t.adresse_depart || t.ville_depart;
+        dans("js-adresse-arrivee").textContent =
+          t.adresse_arrivee || t.ville_arrivee;
+
+        dans("js-prix").textContent = t.prix_par_personne + " ";
+        const unite = document.createElement("span");
+        unite.textContent = "crédits par personne";
+        dans("js-prix").appendChild(unite);
+
+        trajetAffiche = t;
+        reglerBoutonParticiper(t);
+      }
+
+      // ---- US 6 : le bouton n'est actif que si la réservation est possible ----
+      // Deux conditions : il reste une place ET la passagère a assez de crédits.
+      // C'est du confort : le serveur revérifie tout de toute façon.
+      function reglerBoutonParticiper(t) {
+        const bouton = document.getElementById("btn-participer");
+        const raison = dans("js-raison");
+
+        // On repart d'un bouton neutre : sans ça, un ancien état
+        // ("Complet", désactivé...) resterait d'un affichage à l'autre.
+        bouton.disabled = false;
+        bouton.hidden = false;
+        bouton.textContent = "Participer au trajet";
+        raison.hidden = true;
+        raison.textContent = "";
+        document.getElementById("confirmation").hidden = true;
+
+        // 1) Plus de place
+        if (t.nb_places_restantes <= 0) {
+          bouton.disabled = true;
+          bouton.textContent = "Complet";
           return;
         }
 
-        try {
-          const rep = await apiProtegee(`/covoiturages/${id}/participer`, {
-            method: "POST",
-          });
+        // 2) Pas connectée : on laisse le bouton actif.
+        //    Le clic l'enverra vers la page de connexion.
+        const utilisateur = getUser();
+        if (!utilisateur) return;
 
-          const data = await rep.json();
+        // 3) C'est son propre trajet
+        if (utilisateur.user_id === t.chauffeur_id) {
+          bouton.disabled = true;
+          bouton.textContent = "C'est ton trajet";
+          return;
+        }
 
-          document.getElementById("message").innerHTML = `
-            <div class="alerte alerte-${rep.ok ? "succes" : "erreur"}">
-              ${data.message}
-            </div>
-          `;
-
-          if (rep.ok) {
-            chargerDetail();
-          }
-        } catch (error) {
-          document.getElementById("message").innerHTML = `
-            <div class="alerte alerte-erreur">
-              Erreur serveur.
-            </div>
-          `;
+        // 4) Pas assez de crédits
+        if (utilisateur.credits < t.prix_par_personne) {
+          bouton.disabled = true;
+          bouton.textContent = "Crédits insuffisants";
+          raison.hidden = false;
+          raison.textContent =
+            "Il te faut " + t.prix_par_personne + " crédits, tu en as " +
+            utilisateur.credits + ".";
         }
       }
 
+      // ---- Le véhicule (US 5) ----
+      function remplirVehicule(v) {
+        if (!v) return;
+        dans("js-marque").textContent = v.marque || "—";
+        dans("js-modele").textContent = v.modele || "—";
+        dans("js-couleur").textContent = v.couleur || "—";
+        dans("js-energie").textContent = nomEnergie(v.energie);
+      }
+
+      // "electrique" est la valeur en base ; on l'affiche joliment
+      function nomEnergie(energie) {
+        if (energie === "electrique") return "Électrique ⚡";
+        if (energie === "hybride") return "Hybride";
+        if (energie === "essence") return "Essence";
+        if (energie === "diesel") return "Diesel";
+        if (energie === "gpl") return "GPL";
+        return "—";
+      }
+
+      // ---- Les préférences du conducteur (US 5) ----
+      function remplirPreferences(prefs, prefsPerso) {
+        const zone = dans("js-preferences");
+        // On vide d'abord : sinon, si la fonction est rappelée, les pastilles
+        // s'ajouteraient aux anciennes au lieu de les remplacer.
+        zone.innerHTML = "";
+
+        // Petite fonction pour ajouter une pastille.
+        // "refus" met la pastille en rouge (non-fumeur, pas d'animaux).
+        function ajouterPastille(texte, refus) {
+          const pastille = document.createElement("span");
+          pastille.className = refus
+            ? "pastille-preference refus"
+            : "pastille-preference";
+          pastille.textContent = texte;
+          zone.appendChild(pastille);
+        }
+
+        if (prefs) {
+          if (prefs.accepte_fumeur) ajouterPastille("🚬 Fumeur accepté", false);
+          else ajouterPastille("🚭 Non-fumeur", true);
+
+          if (prefs.accepte_animaux) ajouterPastille("🐾 Animaux acceptés", false);
+          else ajouterPastille("🚫 Pas d'animaux", true);
+
+          // Ancien champ texte libre, gardé s'il est rempli
+          if (prefs.preference_perso) {
+            ajouterPastille(prefs.preference_perso, false);
+          }
+        }
+
+        // Les préférences personnalisées : une pastille par ligne de la table
+        if (prefsPerso) {
+          prefsPerso.forEach(function (p) {
+            ajouterPastille(p.libelle, false);
+          });
+        }
+
+        if (zone.children.length === 0) {
+          zone.textContent = "Ce conducteur n'a pas indiqué de préférences.";
+        }
+      }
+
+      // ---- Les avis VALIDÉS du conducteur (US 5) ----
+      function remplirAvis(avis) {
+        const zone = dans("js-avis");
+        zone.innerHTML = ""; // même précaution que pour les préférences
+
+        dans("js-titre-avis").textContent =
+          "⭐ Les avis (" + avis.length + ")";
+
+        if (avis.length === 0) {
+          zone.textContent = "Ce conducteur n'a pas encore d'avis publié.";
+          return;
+        }
+
+        avis.forEach(function (a) {
+          const carte = document.createElement("div");
+          carte.className = "carte-avis";
+
+          // Squelette sans aucune donnée : il est écrit par moi, donc sûr
+          carte.innerHTML = `
+            <div class="entete">
+              <span class="auteur js-auteur"></span>
+              <span class="date js-date-avis"></span>
+            </div>
+            <div class="note-etoiles js-note-avis"></div>
+            <p class="texte js-texte-avis"></p>`;
+
+          // Les données, en textContent
+          const passager = a.passager || {};
+          carte.querySelector(".js-auteur").textContent =
+            passager.pseudo || "Passager";
+          carte.querySelector(".js-date-avis").textContent =
+            formatDate(a.created_at);
+          carte.querySelector(".js-note-avis").textContent =
+            "⭐".repeat(a.note) + " " + a.note + "/5";
+          carte.querySelector(".js-texte-avis").textContent =
+            a.commentaire || "";
+
+          zone.appendChild(carte);
+        });
+      }
+
+      // ---- US 6, étape 1 : le clic sur "Participer" ----
+      // Il ne réserve RIEN. Il affiche d'abord le récapitulatif.
+      function participer() {
+        // Pas connectée → on l'envoie se connecter, en gardant l'adresse
+        // de ce trajet pour y revenir juste après.
+        if (!estConnecte()) {
+          const retour = "detail.html?id=" + id;
+          window.location.href =
+            "connexion.html?retour=" + encodeURIComponent(retour);
+          return;
+        }
+
+        const utilisateur = getUser();
+        const prix = trajetAffiche.prix_par_personne;
+
+        // Le récapitulatif demandé par l'US 6 : combien de crédits,
+        // et combien il en restera après.
+        const texte = dans("js-texte-confirmation");
+        texte.innerHTML = ""; // on repart propre
+
+        const ligne1 = document.createElement("div");
+        ligne1.className = "credits-mis";
+        ligne1.textContent = "Cette réservation utilisera " + prix + " crédits.";
+
+        const ligne2 = document.createElement("div");
+        ligne2.textContent =
+          "Il te restera " + (utilisateur.credits - prix) + " crédits sur " +
+          utilisateur.credits + ".";
+
+        texte.appendChild(ligne1);
+        texte.appendChild(ligne2);
+
+        document.getElementById("confirmation").hidden = false;
+        document.getElementById("btn-participer").hidden = true;
+      }
+
+      // ---- US 6, étape 2 : la confirmation ----
+      // C'est seulement ici qu'on appelle vraiment le serveur.
+      async function confirmerReservation() {
+        const boutonOui = document.getElementById("btn-confirmer");
+        boutonOui.disabled = true; // évite un double clic
+        boutonOui.textContent = "Réservation en cours…";
+
+        const zone = document.getElementById("message");
+
+        try {
+          const reponse = await apiProtegee(
+            "/covoiturages/" + id + "/participer",
+            { method: "POST" }
+          );
+          const data = await reponse.json();
+
+          zone.className = reponse.ok ? "alerte alerte-succes" : "alerte alerte-erreur";
+          zone.textContent = data.message;
+
+          if (reponse.ok) {
+            // Le serveur renvoie les crédits qui restent vraiment :
+            // on met à jour la session pour que le reste du site soit juste.
+            const utilisateur = getUser();
+            utilisateur.credits = data.credits_restants;
+            localStorage.setItem("user", JSON.stringify(utilisateur));
+
+            zone.textContent =
+              data.message + " " + data.credits_utilises +
+              " crédits ont été utilisés, il t'en reste " +
+              data.credits_restants + ".";
+
+            // On recharge pour afficher les places à jour
+            setTimeout(() => window.location.reload(), 1800);
+            return;
+          }
+        } catch (erreur) {
+          zone.className = "alerte alerte-erreur";
+          zone.textContent = "Le serveur ne répond pas.";
+        }
+
+        // En cas d'échec : on remet l'écran comme avant
+        annulerConfirmation();
+        boutonOui.disabled = false;
+        boutonOui.textContent = "Oui, je confirme";
+      }
+
+      // ---- Revenir en arrière sans rien réserver ----
+      function annulerConfirmation() {
+        document.getElementById("confirmation").hidden = true;
+        document.getElementById("btn-participer").hidden = false;
+      }
+
+      // ---- Petits utilitaires d'affichage ----
       function formatDate(date) {
         if (!date) return "—";
         return new Date(date).toLocaleDateString("fr-FR", {
@@ -138,9 +477,45 @@
         });
       }
 
+      function formatHeure(heure) {
+        if (!heure) return "--:--";
+        return heure.slice(0, 5);
+      }
+
+      function minutesDepuisMinuit(heure) {
+        const morceaux = heure.split(":");
+        return Number(morceaux[0]) * 60 + Number(morceaux[1]);
+      }
+
+      function calculerDureeMinutes(t) {
+        if (t.heure_depart && t.heure_arrivee) {
+          const depart = minutesDepuisMinuit(t.heure_depart);
+          const arrivee = minutesDepuisMinuit(t.heure_arrivee);
+          let duree = arrivee - depart;
+          if (duree < 0) duree = duree + 24 * 60;
+          return duree;
+        }
+        if (t.duree_minutes) return t.duree_minutes;
+        return null;
+      }
+
+      function formatDuree(minutes) {
+        if (minutes === null) return "";
+        const heures = Math.floor(minutes / 60);
+        const reste = minutes % 60;
+        if (heures === 0) return reste + " min";
+        return heures + " h " + String(reste).padStart(2, "0");
+      }
+
       document
         .getElementById("btn-participer")
         .addEventListener("click", participer);
+      document
+        .getElementById("btn-confirmer")
+        .addEventListener("click", confirmerReservation);
+      document
+        .getElementById("btn-annuler")
+        .addEventListener("click", annulerConfirmation);
 
       chargerDetail();
     </script>

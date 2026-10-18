@@ -285,6 +285,43 @@
         border-bottom: none;
       }
 
+      /* US 11 : panneau qui s'ouvre sous un trajet terminé
+         (signalement d'un problème, ou dépôt d'un avis). */
+      .panneau-validation {
+        width: 100%;
+        background: var(--vert-pale);
+        border-radius: var(--radius-petit);
+        padding: 14px;
+      }
+
+      .panneau-validation label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--gris-texte);
+      }
+
+      .panneau-validation textarea,
+      .panneau-validation select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1.5px solid var(--gris-bordure);
+        border-radius: var(--radius-petit);
+        font-family: var(--font-corps);
+        font-size: 0.9rem;
+        color: var(--noir-doux);
+        background: white;
+        outline: none;
+      }
+
+      .panneau-validation textarea:focus,
+      .panneau-validation select:focus {
+        border-color: var(--vert-principal);
+      }
+
       .statut-badge {
         display: inline-flex;
         align-items: center;
@@ -524,24 +561,45 @@
                 </label>
               </div>
 
-              <div class="champ-groupe">
-                <label for="pref-perso">Préférences personnalisées</label>
-                <textarea
-                  id="pref-perso"
-                  rows="3"
-                  placeholder="Ex : musique calme, ponctualité appréciée..."
-                ></textarea>
-              </div>
-
               <button class="btn btn-vert" id="btn-save-prefs">
-                Sauvegarder les préférences
+                Sauvegarder fumeur / animaux
               </button>
               <div id="msg-prefs" class="alerte-zone"></div>
+
+              <!-- US 8 : préférences libres, autant qu'on veut.
+                   Chacune est une ligne de la table preferences_personnalisees,
+                   donc on peut en supprimer une sans toucher aux autres. -->
+              <div class="champ-groupe" style="margin-top: 24px">
+                <label for="pref-perso">Mes préférences personnalisées</label>
+                <p class="champ-indice">
+                  Ajoute ce que tu veux : elles s'afficheront sur tes trajets.
+                </p>
+
+                <div class="ligne-ajout">
+                  <input
+                    type="text"
+                    id="pref-perso"
+                    maxlength="100"
+                    placeholder="Ex : pause toutes les 2 heures"
+                  />
+                  <button class="btn btn-vert" id="btn-add-pref" type="button">
+                    Ajouter
+                  </button>
+                </div>
+
+                <div
+                  class="liste-preferences"
+                  id="liste-prefs-perso"
+                  style="margin-top: 12px"
+                ></div>
+                <div id="msg-prefs-perso" class="alerte-zone"></div>
+              </div>
             </div>
           </section>
 
           <section id="mes-trajets" class="section-profil">
             <h2 class="contenu-titre">Mes trajets</h2>
+            <div id="msg-historique" class="alerte-zone"></div>
 
             <div class="carte-blanche">
               <h3>🚗 En tant que chauffeur</h3>
@@ -630,10 +688,27 @@
                   />
                 </div>
 
-                <div class="champ-groupe">
-                  <label for="t-duree">Durée estimée (minutes)</label>
-                  <input type="number" id="t-duree" placeholder="Ex : 240" />
-                </div>
+                <!-- US 9 : on annonce clairement au chauffeur ce qu'il touchera.
+                         La durée n'est plus demandée : le serveur la calcule
+                         à partir des heures de départ et d'arrivée. -->
+                    <div class="encart-gains" id="encart-gains">
+                      <div class="ligne-gain">
+                        <span>Prix demandé au passager</span>
+                        <strong id="gain-prix">—</strong>
+                      </div>
+                      <div class="ligne-gain">
+                        <span>Commission EcoRide</span>
+                        <strong id="gain-commission">— 2 crédits</strong>
+                      </div>
+                      <div class="ligne-gain total">
+                        <span>Tu reçois par passager</span>
+                        <strong id="gain-net">—</strong>
+                      </div>
+                      <div class="ligne-gain">
+                        <span>Soit au maximum</span>
+                        <strong id="gain-max">—</strong>
+                      </div>
+                    </div>
 
                 <div class="champ-groupe">
                   <label for="t-vehicule">Véhicule</label>
@@ -719,6 +794,7 @@
       </div>
     </div>
 
+    <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
       if (!estConnecte()) {
@@ -742,14 +818,27 @@
       }
 
       function afficherAlerte(id, type, message) {
-        document.getElementById(id).innerHTML = `
-          <div class="alerte alerte-${type}">${message}</div>
-        `;
+        const zone = document.getElementById(id);
+
+        // Le cadre est écrit par moi, le texte vient du serveur :
+        // on le pose avec textContent, jamais interprété comme du HTML.
+        zone.innerHTML = `<div class="alerte alerte-${type}"></div>`;
+        zone.querySelector(".alerte").textContent = message;
+
+        // Sans ça, le message peut s'afficher tout en haut de la page,
+        // hors de l'écran : on ne le voit jamais.
+        zone.scrollIntoView({ behavior: "smooth", block: "center" });
       }
 
-      function trajetHistoriqueHTML(t, type, participation) {
-        if (!t) return "";
-        const statutClass = `statut-${t.statut || "planifie"}`;
+      // ---- Construire la ligne d'UN trajet dans l'historique ----
+      // On renvoie un vrai élément HTML et on remplit les données avec
+      // textContent : les villes sont saisies par les chauffeurs, on ne les
+      // laisse jamais être interprétées comme du HTML (protection XSS).
+      function creerLigneHistorique(t, type, participation) {
+        const ligne = document.createElement("div");
+        ligne.className = "trajet-historique";
+        if (!t) return ligne;
+
         const statutLabel = {
           planifie: "Planifié",
           en_cours: "En cours",
@@ -757,33 +846,350 @@
           annule: "Annulé",
         };
 
-        const actionsHTML =
-          type === "chauffeur" && t.statut === "planifie"
-            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="demarrerTrajet(${t.covoiturage_id})">▶ Démarrer</button>`
-            : type === "chauffeur" && t.statut === "en_cours"
-            ? `<button class="btn btn-vert" style="padding:8px 14px;font-size:0.82rem" onclick="terminerTrajet(${t.covoiturage_id})">🏁 Terminer</button>`
-            : "";
-
-        return `
-          <div class="trajet-historique">
-            <div>
-              <strong>${t.ville_depart || "—"} → ${
-          t.ville_arrivee || "—"
-        }</strong>
-              <div style="font-size:0.82rem; color:var(--gris-texte); margin-top:2px">
-                ${formatDate(t.date_depart)} · ${
-          t.prix_par_personne || 0
-        } crédits/pers
-              </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px">
-              <span class="statut-badge ${statutClass}">
-                ${statutLabel[t.statut] || t.statut}
-              </span>
-              ${actionsHTML}
-            </div>
+        // Le squelette, sans aucune donnée : écrit par moi, donc sûr.
+        ligne.innerHTML = `
+          <div>
+            <strong class="js-villes"></strong>
+            <div class="js-details" style="font-size:0.82rem;color:var(--gris-texte);margin-top:2px"></div>
           </div>
-        `;
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="statut-badge js-statut"></span>
+            <span class="js-actions" style="display:flex;gap:8px;flex-wrap:wrap"></span>
+          </div>
+          <div class="js-panneau panneau-validation" hidden></div>`;
+
+        const dans = (c) => ligne.querySelector("." + c);
+
+        dans("js-villes").textContent =
+          (t.ville_depart || "—") + " → " + (t.ville_arrivee || "—");
+        dans("js-details").textContent =
+          formatDate(t.date_depart) + " · " + (t.prix_par_personne || 0) +
+          " crédits/pers";
+
+        const badge = dans("js-statut");
+        badge.classList.add("statut-" + (t.statut || "planifie"));
+        badge.textContent = statutLabel[t.statut] || t.statut;
+
+        const actions = dans("js-actions");
+
+        // Petit raccourci pour fabriquer un bouton d'action
+        function bouton(texte, classe, action) {
+          const b = document.createElement("button");
+          b.className = "btn " + classe;
+          b.style.cssText = "padding:8px 14px;font-size:0.82rem";
+          b.textContent = texte;
+          b.addEventListener("click", action);
+          actions.appendChild(b);
+        }
+
+        // --- Côté CHAUFFEUR ---
+        if (type === "chauffeur") {
+          if (t.statut === "planifie") {
+            bouton("▶ Démarrer", "btn-vert", () =>
+              demarrerTrajet(t.covoiturage_id)
+            );
+            // US 10 : annuler son trajet (rembourse tous les passagers)
+            bouton("Annuler le trajet", "btn-danger", () =>
+              annulerTrajet(t.covoiturage_id, t.ville_depart, t.ville_arrivee)
+            );
+          } else if (t.statut === "en_cours") {
+            bouton("🏁 Arrivée à destination", "btn-vert", () =>
+              terminerTrajet(t.covoiturage_id)
+            );
+          }
+        }
+
+        // --- Côté PASSAGER ---
+        if (type === "passager" && participation) {
+          if (participation.statut === "annulee") {
+            // On le dit clairement, au lieu de laisser croire qu'elle participe
+            const note = document.createElement("span");
+            note.className = "statut-badge statut-annule";
+            note.textContent = "Réservation annulée";
+            actions.appendChild(note);
+          } else if (t.statut === "planifie") {
+            // US 10 : annuler sa réservation (remboursement + place libérée)
+            bouton("Annuler ma réservation", "btn-danger", () =>
+              annulerReservation(t.covoiturage_id)
+            );
+          } else if (t.statut === "termine") {
+            // ---- US 11 : le passager dit comment ça s'est passé ----
+            // trajet_valide vaut null tant qu'il n'a rien dit.
+            const panneau = dans("js-panneau");
+
+            if (
+              participation.trajet_valide === null ||
+              participation.trajet_valide === undefined
+            ) {
+              // Tant qu'il n'a pas répondu, le chauffeur n'est PAS payé.
+              const info = document.createElement("span");
+              info.className = "statut-badge statut-planifie";
+              info.textContent = "À confirmer";
+              actions.appendChild(info);
+
+              bouton("✅ Tout s'est bien passé", "btn-vert", () =>
+                validerTrajet(t.covoiturage_id, true)
+              );
+              bouton("⚠️ J'ai eu un problème", "btn-danger", () =>
+                afficherFormProbleme(panneau, t.covoiturage_id)
+              );
+            } else if (participation.trajet_valide === true) {
+              // Il a validé : le chauffeur a été payé. On propose l'avis.
+              const ok = document.createElement("span");
+              ok.className = "statut-badge statut-termine";
+              ok.textContent = "✅ Trajet confirmé";
+              actions.appendChild(ok);
+
+              bouton("⭐ Laisser un avis", "btn-vert", () =>
+                afficherFormAvis(panneau, t.covoiturage_id)
+              );
+            } else {
+              // Il a signalé un problème : un employé doit trancher (US 12).
+              const pb = document.createElement("span");
+              pb.className = "statut-badge statut-annule";
+              pb.textContent = "⚠️ Problème signalé";
+              actions.appendChild(pb);
+
+              if (participation.commentaire_probleme) {
+                panneau.hidden = false;
+                const txt = document.createElement("p");
+                txt.style.cssText =
+                  "margin:0;font-size:0.85rem;color:var(--gris-texte)";
+                // textContent : le commentaire vient d'un utilisateur.
+                txt.textContent =
+                  "Ton signalement : " + participation.commentaire_probleme;
+                panneau.appendChild(txt);
+              }
+            }
+          }
+        }
+
+        return ligne;
+      }
+
+      // ---- US 11 : formulaire "j'ai eu un problème" ----
+      // On l'ouvre sous la ligne du trajet, au lieu d'une pop-up.
+      function afficherFormProbleme(panneau, covoiturageId) {
+        panneau.hidden = false;
+        panneau.innerHTML = `
+          <label for="pb-${covoiturageId}">
+            Explique ce qui s'est mal passé (obligatoire)
+          </label>
+          <textarea id="pb-${covoiturageId}" rows="3"
+            placeholder="Exemple : le chauffeur n'est jamais venu au point de rendez-vous."></textarea>
+          <p class="js-erreur" style="margin:6px 0 0;color:#b91c1c;font-size:0.85rem" hidden></p>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-danger js-envoyer" style="padding:8px 14px;font-size:0.82rem">
+              Envoyer le signalement
+            </button>
+            <button class="btn js-annuler" style="padding:8px 14px;font-size:0.82rem">
+              Annuler
+            </button>
+          </div>`;
+
+        const zoneTexte = panneau.querySelector("textarea");
+        zoneTexte.focus();
+
+        panneau.querySelector(".js-annuler").addEventListener("click", () => {
+          panneau.hidden = true;
+          panneau.innerHTML = "";
+        });
+
+        panneau.querySelector(".js-envoyer").addEventListener("click", () => {
+          const commentaire = zoneTexte.value.trim();
+          const erreur = panneau.querySelector(".js-erreur");
+
+          if (commentaire === "") {
+            erreur.textContent = "Merci d'expliquer ce qui s'est mal passé.";
+            erreur.hidden = false;
+            zoneTexte.focus();
+            return;
+          }
+          erreur.hidden = true;
+          validerTrajet(covoiturageId, false, commentaire);
+        });
+      }
+
+      // ---- US 11 : envoi de la réponse du passager ----
+      // tout_ok = true  -> le chauffeur est payé
+      // tout_ok = false -> il n'est pas payé, un employé regardera (US 12)
+      async function validerTrajet(covoiturageId, toutOk, commentaire) {
+        if (
+          toutOk &&
+          !confirm(
+            "Confirmer que tout s'est bien passé ? Le chauffeur recevra ses crédits."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee(`/covoiturages/${covoiturageId}/valider`, {
+            method: "POST",
+            body: JSON.stringify({
+              tout_ok: toutOk,
+              commentaire: commentaire || null,
+            }),
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte("msg-historique", "succes", data.message);
+          chargerHistorique(); // on recharge pour voir le nouvel état
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- US 11 : formulaire d'avis (note + commentaire) ----
+      function afficherFormAvis(panneau, covoiturageId) {
+        panneau.hidden = false;
+        panneau.innerHTML = `
+          <label for="note-${covoiturageId}">
+            Ta note sur le chauffeur
+          </label>
+          <select id="note-${covoiturageId}">
+            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+            <option value="4">⭐⭐⭐⭐ Très bien</option>
+            <option value="3">⭐⭐⭐ Correct</option>
+            <option value="2">⭐⭐ Moyen</option>
+            <option value="1">⭐ Mauvais</option>
+          </select>
+          <textarea rows="2" style="margin-top:8px"
+            placeholder="Ton commentaire (facultatif)"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-vert js-envoyer" style="padding:8px 14px;font-size:0.82rem">
+              Envoyer mon avis
+            </button>
+            <button class="btn js-annuler" style="padding:8px 14px;font-size:0.82rem">
+              Annuler
+            </button>
+          </div>`;
+
+        panneau.querySelector(".js-annuler").addEventListener("click", () => {
+          panneau.hidden = true;
+          panneau.innerHTML = "";
+        });
+
+        panneau.querySelector(".js-envoyer").addEventListener("click", async () => {
+          const note = Number(panneau.querySelector("select").value);
+          const commentaire = panneau.querySelector("textarea").value.trim();
+
+          try {
+            const rep = await apiProtegee("/avis", {
+              method: "POST",
+              body: JSON.stringify({
+                covoiturage_id: covoiturageId,
+                note: note,
+                commentaire: commentaire || null,
+              }),
+            });
+            const data = await rep.json();
+
+            if (!rep.ok) {
+              afficherAlerte("msg-historique", "erreur", data.message);
+              return;
+            }
+
+            panneau.hidden = true;
+            panneau.innerHTML = "";
+            afficherAlerte("msg-historique", "succes", data.message);
+          } catch {
+            afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+          }
+        });
+      }
+
+      // ---- US 10 : le passager annule sa réservation ----
+      async function annulerReservation(id) {
+        if (
+          !confirm(
+            "Annuler ta réservation ? Tes crédits te seront remboursés."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/covoiturages/" + id + "/participer", {
+            method: "DELETE",
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte(
+            "msg-historique",
+            "succes",
+            data.message + " (" + data.credits_rembourses + " crédits)"
+          );
+          rafraichirApresAnnulation(data.credits_rembourses);
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- US 10 : le chauffeur annule son trajet ----
+      async function annulerTrajet(id, depart, arrivee) {
+        if (
+          !confirm(
+            "Annuler le trajet " + depart + " → " + arrivee + " ?\n\n" +
+              "Tous les passagers seront remboursés et prévenus par mail. " +
+              "Cette action est définitive."
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/covoiturages/" + id, {
+            method: "DELETE",
+          });
+          const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-historique", "erreur", data.message);
+            return;
+          }
+
+          afficherAlerte("msg-historique", "succes", data.message);
+
+          // En mode test, on affiche les liens pour LIRE les mails envoyés.
+          // Très pratique pour montrer les mails pendant la soutenance.
+          if (data.apercus_mails && data.apercus_mails.length > 0) {
+            const zone = document.getElementById("msg-historique");
+            data.apercus_mails.forEach((lien) => {
+              const a = document.createElement("a");
+              a.href = lien;
+              a.target = "_blank";
+              a.textContent = "📧 Voir le mail envoyé";
+              a.style.cssText = "display:block;margin-top:8px";
+              zone.appendChild(a);
+            });
+          }
+
+          chargerHistorique();
+        } catch {
+          afficherAlerte("msg-historique", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // Après une annulation : on met à jour les crédits affichés et la liste
+      function rafraichirApresAnnulation(creditsRembourses) {
+        const u = getUser();
+        u.credits = u.credits + creditsRembourses;
+        localStorage.setItem("user", JSON.stringify(u));
+        document.getElementById("sidebar-credits").textContent =
+          "💳 " + u.credits + " crédits";
+        document.getElementById("db-credits").textContent = u.credits;
+        chargerHistorique();
       }
 
       function marquerRoleActuel() {
@@ -865,11 +1271,127 @@
         }
       }
 
+      // US 8 — On retient l'ancien texte libre (colonne preference_perso).
+      // Le formulaire ne le modifie plus : les nouvelles préférences vont
+      // dans la table dédiée. On le renvoie tel quel pour ne pas l'effacer.
+      let ancienTexteLibre = null;
+
+      // ---- Charger les préférences au chargement de la page ----
+      // Sans ça, les cases repartaient vides à chaque visite, même si on
+      // avait déjà enregistré quelque chose.
+      async function chargerPreferences() {
+        try {
+          const rep = await apiProtegee("/utilisateurs/preferences");
+          const data = await rep.json();
+
+          if (data.preferences) {
+            document.getElementById("pref-fumeur").checked =
+              data.preferences.accepte_fumeur;
+            document.getElementById("pref-animaux").checked =
+              data.preferences.accepte_animaux;
+            ancienTexteLibre = data.preferences.preference_perso;
+          }
+
+          afficherPrefsPerso(data.preferences_perso || []);
+        } catch {
+          afficherAlerte("msg-prefs", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Afficher la liste des préférences personnalisées ----
+      function afficherPrefsPerso(liste) {
+        const zone = document.getElementById("liste-prefs-perso");
+        zone.innerHTML = ""; // on vide avant de remplir
+
+        if (liste.length === 0) {
+          const vide = document.createElement("p");
+          vide.className = "aucune-preference";
+          vide.textContent = "Aucune préférence pour l'instant.";
+          zone.appendChild(vide);
+          return;
+        }
+
+        liste.forEach((pref) => {
+          const pastille = document.createElement("span");
+          pastille.className = "pastille-supprimable";
+
+          // textContent : le texte vient de la base, on ne le laisse
+          // jamais être interprété comme du HTML (protection XSS).
+          const texte = document.createElement("span");
+          texte.textContent = pref.libelle;
+
+          const croix = document.createElement("button");
+          croix.type = "button";
+          croix.textContent = "×";
+          croix.title = "Supprimer";
+          croix.addEventListener("click", () =>
+            supprimerPrefPerso(pref.preference_perso_id)
+          );
+
+          pastille.appendChild(texte);
+          pastille.appendChild(croix);
+          zone.appendChild(pastille);
+        });
+      }
+
+      // ---- Ajouter une préférence personnalisée ----
+      async function ajouterPrefPerso() {
+        const champ = document.getElementById("pref-perso");
+        const libelle = champ.value.trim();
+
+        if (!libelle) {
+          afficherAlerte("msg-prefs-perso", "erreur", "Écris ta préférence.");
+          return;
+        }
+
+        try {
+          const rep = await apiProtegee("/utilisateurs/preferences-perso", {
+            method: "POST",
+            body: JSON.stringify({ libelle }),
+          });
+          const data = await rep.json();
+
+          afficherAlerte(
+            "msg-prefs-perso",
+            rep.ok ? "succes" : "erreur",
+            data.message
+          );
+
+          if (rep.ok) {
+            champ.value = "";       // on vide le champ
+            chargerPreferences();   // et on redessine la liste
+          }
+        } catch {
+          afficherAlerte("msg-prefs-perso", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Supprimer une préférence personnalisée ----
+      async function supprimerPrefPerso(id) {
+        try {
+          const rep = await apiProtegee(
+            "/utilisateurs/preferences-perso/" + id,
+            { method: "DELETE" }
+          );
+          const data = await rep.json();
+
+          if (rep.ok) {
+            chargerPreferences();
+          } else {
+            afficherAlerte("msg-prefs-perso", "erreur", data.message);
+          }
+        } catch {
+          afficherAlerte("msg-prefs-perso", "erreur", "Erreur serveur.");
+        }
+      }
+
+      // ---- Sauvegarder fumeur / animaux ----
       async function sauvegarderPrefs() {
         const body = {
           accepte_fumeur: document.getElementById("pref-fumeur").checked,
           accepte_animaux: document.getElementById("pref-animaux").checked,
-          preference_perso: document.getElementById("pref-perso").value,
+          // On renvoie l'ancien texte libre inchangé, pour ne pas l'effacer.
+          preference_perso: ancienTexteLibre,
         };
 
         try {
@@ -903,17 +1425,21 @@
           } else {
             document.getElementById("db-trajets").textContent =
               data.chauffeur.length;
-            listeCh.innerHTML = data.chauffeur
-              .map((t) => trajetHistoriqueHTML(t, "chauffeur"))
-              .join("");
+            listeCh.innerHTML = "";
+            data.chauffeur.forEach((t) =>
+              listeCh.appendChild(creerLigneHistorique(t, "chauffeur"))
+            );
           }
 
           if (!data.passager || data.passager.length === 0) {
             listePa.innerHTML = `<p class="zone-vide">Aucune réservation.</p>`;
           } else {
-            listePa.innerHTML = data.passager
-              .map((p) => trajetHistoriqueHTML(p.covoiturage, "passager", p))
-              .join("");
+            listePa.innerHTML = "";
+            data.passager.forEach((p) =>
+              listePa.appendChild(
+                creerLigneHistorique(p.covoiturage, "passager", p)
+              )
+            );
           }
 
           const nbEco = (data.chauffeur || []).filter(
@@ -1059,6 +1585,32 @@
         }
       }
 
+      // ---- US 9 : combien le chauffeur va-t-il toucher ? ----
+      // La plateforme prend 2 crédits par passager. Le chauffeur doit le
+      // savoir AVANT de publier : c'est demandé par l'US 9.
+      // Cette valeur est aussi fixée côté serveur : ici c'est de l'affichage.
+      const CREDITS_PLATEFORME = 2;
+
+      function majGains() {
+        const prix = parseInt(document.getElementById("t-prix").value, 10);
+        const places = parseInt(document.getElementById("t-places").value, 10);
+
+        const prixOk = Number.isInteger(prix) && prix > 0;
+        const net = prixOk ? prix - CREDITS_PLATEFORME : null;
+
+        document.getElementById("gain-prix").textContent = prixOk
+          ? prix + " crédits"
+          : "—";
+        document.getElementById("gain-commission").textContent =
+          "− " + CREDITS_PLATEFORME + " crédits";
+        document.getElementById("gain-net").textContent =
+          net === null ? "—" : net + " crédits";
+
+        const placesOk = Number.isInteger(places) && places > 0;
+        document.getElementById("gain-max").textContent =
+          net === null || !placesOk ? "—" : net * places + " crédits";
+      }
+
       async function proposerTrajet() {
         const vehiculeValue = document.getElementById("t-vehicule").value;
         const ville_depart = document.getElementById("t-depart").value.trim();
@@ -1073,18 +1625,15 @@
         const heure_depart = document.getElementById("t-heure-depart").value;
         const date_arrivee = document.getElementById("t-date-arrivee").value;
         const heure_arrivee = document.getElementById("t-heure-arrivee").value;
-        const dureeValue = document.getElementById("t-duree").value;
         const prixValue = document.getElementById("t-prix").value;
         const placesValue = document.getElementById("t-places").value;
 
+        // L'heure d'arrivée est obligatoire : c'est elle qui sert à calculer
+        // la durée, et donc le filtre "durée maximum" de l'US 4.
         if (
-          !vehiculeValue ||
-          !ville_depart ||
-          !ville_arrivee ||
-          !date_depart ||
-          !heure_depart ||
-          !prixValue ||
-          !placesValue
+          !vehiculeValue || !ville_depart || !ville_arrivee ||
+          !date_depart || !heure_depart || !date_arrivee || !heure_arrivee ||
+          !prixValue || !placesValue
         ) {
           afficherAlerte(
             "msg-trajet",
@@ -1102,11 +1651,13 @@
           adresse_arrivee,
           date_depart,
           heure_depart,
-          date_arrivee: date_arrivee || null,
-          heure_arrivee: heure_arrivee || null,
-          duree_minutes: dureeValue ? parseInt(dureeValue, 10) : null,
-          prix_par_personne: parseFloat(prixValue),
+          date_arrivee,
+          heure_arrivee,
+          // parseInt et pas parseFloat : les crédits sont des nombres entiers.
+          prix_par_personne: parseInt(prixValue, 10),
           nb_places_total: parseInt(placesValue, 10),
+          // On n'envoie PAS la durée : le serveur la calcule lui-même à
+          // partir des heures, pour qu'elle soit toujours cohérente.
         };
 
         try {
@@ -1116,19 +1667,39 @@
           });
 
           const data = await rep.json();
+
+          if (!rep.ok) {
+            afficherAlerte("msg-trajet", "erreur", data.message);
+            return;
+          }
+
+          // On répète au chauffeur ce qu'il touchera, avec les chiffres
+          // renvoyés par le serveur (et pas ceux calculés dans la page).
           afficherAlerte(
             "msg-trajet",
-            rep.ok ? "succes" : "erreur",
-            data.message || "Erreur."
+            "succes",
+            "Trajet publié ! La plateforme prélève " +
+              data.credits_plateforme +
+              " crédits par passager : tu recevras " +
+              data.gain_par_passager +
+              " crédits par passager, soit " +
+              data.gain_maximum +
+              " crédits si le trajet est complet."
           );
 
-          if (rep.ok) {
-            chargerHistorique();
-          }
+          // On vide le formulaire et on rafraîchit la liste des trajets
+          ["t-depart","t-arrivee","t-adr-depart","t-adr-arrivee",
+           "t-date-depart","t-heure-depart","t-date-arrivee","t-heure-arrivee",
+           "t-prix","t-places"].forEach((id) => {
+            document.getElementById(id).value = "";
+          });
+          majGains();
+          chargerHistorique();
         } catch {
           afficherAlerte("msg-trajet", "erreur", "Erreur serveur.");
         }
       }
+
       window.addEventListener("DOMContentLoaded", () => {
         document.getElementById("sidebar-avatar").textContent = (user.pseudo ||
           "?")[0].toUpperCase();
@@ -1165,6 +1736,21 @@
         document
           .getElementById("btn-save-prefs")
           .addEventListener("click", sauvegarderPrefs);
+
+        // US 8 : ajouter une préférence personnalisée
+        document
+          .getElementById("btn-add-pref")
+          .addEventListener("click", ajouterPrefPerso);
+
+        // La touche Entrée dans le champ ajoute aussi la préférence
+        document
+          .getElementById("pref-perso")
+          .addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              ajouterPrefPerso();
+            }
+          });
         document
           .getElementById("btn-add-vehicule")
           .addEventListener("click", ajouterVehicule);
@@ -1172,10 +1758,16 @@
           .getElementById("btn-publier-trajet")
           .addEventListener("click", proposerTrajet);
 
+        // US 9 : on recalcule les gains dès que le prix ou les places changent
+        document.getElementById("t-prix").addEventListener("input", majGains);
+        document.getElementById("t-places").addEventListener("input", majGains);
+        majGains();
+
         brancherSelectionRole();
         marquerRoleActuel();
         chargerHistorique();
         chargerVehicules();
+        chargerPreferences(); // US 8 : on affiche ce qui est déjà enregistré
       });
     </script>
   </body>

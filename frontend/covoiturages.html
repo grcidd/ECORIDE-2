@@ -439,6 +439,7 @@
       </div>
     </div>
 
+    <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
       let tousLesTrajets = []; // stocke les résultats bruts pour les filtres
@@ -495,41 +496,66 @@
           tousLesTrajets = data.trajets || [];
 
           if (tousLesTrajets.length === 0) {
-            // Aucun résultat
-            let msg = `<div class="zone-vide">
-                          <div class="icone">🔍</div>
-                          <h3>Aucun trajet disponible</h3>
-                          <p>Aucun covoiturage trouvé pour ce trajet à cette date.</p>`;
-
-            if (data.prochain_dispo) {
-              msg += `<div class="alerte alerte-info" style="margin-top:20px;display:inline-block">
-                              📅 Prochain trajet disponible le <strong>${formatDate(
-                                data.prochain_dispo
-                              )}</strong>
-                              <br><button class="btn btn-vert" style="margin-top:12px"
-                                  onclick="changerDate('${
-                                    data.prochain_dispo
-                                  }')">
-                                  Voir ce trajet
-                              </button>
-                          </div>`;
-            }
-
-            msg += "</div>";
-            document.getElementById("liste-trajets").innerHTML = msg;
-            document.getElementById(
-              "titre-resultats"
-            ).innerHTML = `<h3>Aucun résultat pour <strong>${depart} → ${arrivee}</strong></h3>`;
+            afficherAucunResultat(depart, arrivee, data.prochain_dispo);
           } else {
-            document.getElementById(
-              "titre-resultats"
-            ).innerHTML = `<h3><strong>${tousLesTrajets.length} trajet(s)</strong> trouvé(s) · ${depart} → ${arrivee}</h3>`;
-            filtrerTrajets(); // applique les filtres et affiche
+            afficherTitreResultats(tousLesTrajets.length, depart, arrivee);
+            filtrerTrajets(); // applique les filtres puis affiche les cartes
           }
         } catch (err) {
           console.error("Erreur recherche covoiturages :", err);
           afficherErreur("Erreur pendant l'affichage des trajets.");
         }
+      }
+
+      // ---- Titre au-dessus de la liste : "3 trajet(s) trouvé(s) · Lyon → Paris" ----
+      function afficherTitreResultats(nombre, depart, arrivee) {
+        const zone = document.getElementById("titre-resultats");
+        zone.innerHTML = "";
+
+        const titre = document.createElement("h3");
+        // textContent : les villes sont tapées par l'utilisateur,
+        // on ne les laisse jamais être interprétées comme du HTML.
+        titre.textContent =
+          nombre + " trajet(s) trouvé(s) · " + depart + " → " + arrivee;
+        zone.appendChild(titre);
+      }
+
+      // ---- Message quand la recherche ne donne rien ----
+      // US 3 : on propose alors la date du prochain trajet disponible
+      // sur le même parcours, avec un bouton pour relancer la recherche.
+      function afficherAucunResultat(depart, arrivee, prochaineDate) {
+        afficherTitreResultats(0, depart, arrivee);
+
+        const zone = document.getElementById("liste-trajets");
+        zone.innerHTML = `
+          <div class="zone-vide">
+            <div class="icone">🔍</div>
+            <h3>Aucun trajet disponible</h3>
+            <p>Aucun covoiturage trouvé pour ce trajet à cette date.</p>
+            <div class="js-proposition"></div>
+          </div>`;
+
+        // Le serveur n'a trouvé aucune autre date : on s'arrête là.
+        if (!prochaineDate) return;
+
+        // Sinon on propose la date trouvée.
+        const bloc = zone.querySelector(".js-proposition");
+        bloc.className = "alerte alerte-info";
+        bloc.style.marginTop = "20px";
+
+        const texte = document.createElement("p");
+        texte.textContent =
+          "📅 Prochain trajet disponible le " + formatDate(prochaineDate);
+        bloc.appendChild(texte);
+
+        const bouton = document.createElement("button");
+        bouton.className = "btn btn-vert";
+        bouton.style.marginTop = "12px";
+        bouton.textContent = "Voir ce trajet";
+        // addEventListener plutôt qu'un onclick écrit dans le HTML :
+        // c'est plus propre et ça évite d'injecter une valeur dans du code.
+        bouton.addEventListener("click", () => changerDate(prochaineDate));
+        bloc.appendChild(bouton);
       }
 
       // ---- Afficher les trajets filtrés ----
@@ -542,11 +568,22 @@
           parseFloat(document.getElementById("filtre-note").value) || 0;
 
         const filtres = tousLesTrajets.filter((t) => {
+          // Filtre 1 : uniquement les voitures électriques
           if (eco && !t.est_ecologique) return false;
+
+          // Filtre 2 : prix maximum
           if (t.prix_par_personne > prix) return false;
-          if (t.duree_minutes && t.duree_minutes > duree) return false;
+
+          // Filtre 3 : durée maximum, calculée avec l'heure d'arrivée
+          const dureeTrajet = calculerDureeMinutes(t);
+          if (dureeTrajet !== null && dureeTrajet > duree) return false;
+
+          // Filtre 4 : note minimum du chauffeur
+          // Un chauffeur sans aucun avis n'a pas de note : on l'écarte
+          // dès que la passagère demande une note minimum.
           if (note > 0 && (!t.note_chauffeur || t.note_chauffeur < note))
             return false;
+
           return true;
         });
 
@@ -558,82 +595,116 @@
                           <p>Essaie d'assouplir tes critères.</p>
                       </div>`;
         } else {
-          document.getElementById("liste-trajets").innerHTML = filtres
-            .map((t) => carteTrajetHTML(t))
-            .join("");
+          const zone = document.getElementById("liste-trajets");
+          zone.innerHTML = ""; // on vide la liste précédente
+          // On ajoute les cartes une par une.
+          // appendChild() pose un vrai élément : aucune donnée n'est
+          // interprétée comme du HTML, donc aucun risque d'injection.
+          filtres.forEach((t) => zone.appendChild(creerCarteTrajet(t)));
         }
       }
 
-      // ---- Générer le HTML d'une carte trajet ----
-      function carteTrajetHTML(t) {
+      // ---- Construire la carte d'UN trajet ----
+      // On renvoie un vrai élément HTML (et pas du texte), pour pouvoir
+      // remplir les données avec textContent : c'est la protection anti-XSS.
+      // Si un chauffeur met du code dans son pseudo, il s'affichera comme
+      // du texte au lieu d'être exécuté par le navigateur.
+      function creerCarteTrajet(t) {
         const chauffeur = t.chauffeur || {};
-        const initiale = (chauffeur.pseudo || "?")[0].toUpperCase();
-        const note = t.note_chauffeur ? `⭐ ${t.note_chauffeur}` : "⭐ Nouveau";
-        const eco = t.est_ecologique
-          ? `<span class="badge-eco">🌱 Écologique</span>`
-          : "";
 
-        const photo = chauffeur.photo
-          ? `<img src="${chauffeur.photo}" alt="${chauffeur.pseudo}" />`
-          : initiale;
+        // 1) On crée la carte vide
+        const carte = document.createElement("div");
+        carte.className = "carte-trajet";
 
-        return `
-             <div class="carte-trajet">
-            <h3>${t.ville_depart} → ${t.ville_arrivee}</h3>
-
-            <p><strong>Date :</strong> ${t.date_depart}</p>
-            <p><strong>Heure :</strong> ${t.heure_depart}</p>
-            <p><strong>Prix :</strong> ${t.prix_par_personne} crédits</p>
-            <p><strong>Places restantes :</strong> ${t.nb_places_restantes}</p>
-            <p><strong>Écologique :</strong> ${
-              t.est_ecologique ? "Oui 🌱" : "Non"
-            }</p>
-
-            <a href="detail.html?id=${t.covoiturage_id}" class="btn btn-vert">
-              Voir détail
-            </a>
+        // 2) On pose le squelette. Ce HTML est écrit par MOI,
+        //    il ne contient AUCUNE donnée venant de la base : il est donc sûr.
+        carte.innerHTML = `
+          <div class="carte-chauffeur">
+            <div class="avatar js-avatar"></div>
+            <div>
+              <div class="chauffeur-nom js-pseudo"></div>
+              <div class="note-etoiles js-note"></div>
+            </div>
           </div>
-          <a href="detail.html?id=${t.covoiturage_id}" class="btn btn-vert">
-  Voir le détail
-</a>
-        
 
-                  <div class="trajet-infos">
-                      <div class="trajet-info-item">📅 ${formatDate(
-                        t.date_depart
-                      )}</div>
-                      <div class="trajet-info-item">🕐 ${
-                        t.heure_depart?.slice(0, 5) || "--"
-                      }</div>
-                      <div class="trajet-info-item">👥 ${
-                        t.nb_places_restantes
-                      } place(s) dispo</div>
-                      ${
-                        t.duree_minutes
-                          ? `<div class="trajet-info-item">⏱ ${t.duree_minutes} min</div>`
-                          : ""
-                      }
-                      ${eco}
-                  </div>
+          <h3 class="trajet-titre js-trajet"></h3>
 
-                  <div class="trajet-footer">
-                      <div class="chauffeur-mini">
-                          <div class="avatar-mini">${photo}</div>
-                          <div>
-                              <div class="chauffeur-nom">${
-                                chauffeur.pseudo || "Chauffeur"
-                              }</div>
-                              <div class="note-etoiles" style="font-size:0.8rem">${note}</div>
-                          </div>
-                      </div>
-                      <a href="detail.html?id=${
-                        t.covoiturage_id
-                      }" class="btn btn-vert"
-                          style="padding:10px 20px; font-size:0.88rem">
-                          Voir le détail
-                      </a>
-                  </div>
-              </div>`;
+          <div class="trajet-infos">
+            <div class="trajet-info-item js-date"></div>
+            <div class="trajet-info-item js-horaires"></div>
+            <div class="trajet-info-item js-duree"></div>
+            <div class="trajet-info-item js-places"></div>
+            <span class="badge-eco js-eco" hidden>🌱 Écologique</span>
+          </div>
+
+          <div class="trajet-footer">
+            <div class="trajet-prix js-prix"></div>
+            <a class="btn btn-vert js-detail">Voir le détail</a>
+          </div>`;
+
+        // 3) On remplit avec les vraies données, en textContent
+        //    (petite fonction raccourci pour aller chercher un morceau de la carte)
+        const dans = (classe) => carte.querySelector("." + classe);
+
+        // --- Le chauffeur : pseudo, photo, note ---
+        const pseudo = chauffeur.pseudo || "Chauffeur";
+        dans("js-pseudo").textContent = pseudo;
+
+        if (chauffeur.photo) {
+          // Une photo : on crée une vraie balise <img> et on met l'adresse
+          // avec setAttribute, jamais en collant du HTML.
+          const image = document.createElement("img");
+          image.src = chauffeur.photo;
+          image.alt = pseudo;
+          dans("js-avatar").appendChild(image);
+        } else {
+          // Pas de photo : on affiche la 1re lettre du pseudo
+          dans("js-avatar").textContent = pseudo[0].toUpperCase();
+        }
+
+        // note_chauffeur est calculée par le serveur (moyenne des avis validés)
+        if (t.note_chauffeur) {
+          dans("js-note").textContent = "⭐ " + t.note_chauffeur + " / 5";
+        } else {
+          dans("js-note").textContent = "⭐ Nouveau chauffeur";
+        }
+
+        // --- Le trajet ---
+        dans("js-trajet").textContent =
+          t.ville_depart + " → " + t.ville_arrivee;
+
+        dans("js-date").textContent = "📅 " + formatDate(t.date_depart);
+
+        // Heure de DÉPART et heure d'ARRIVÉE (demandé par l'US 3)
+        dans("js-horaires").textContent =
+          "🕐 " + formatHeure(t.heure_depart) + " → " + formatHeure(t.heure_arrivee);
+
+        // Durée du trajet (c'est elle que filtre l'US 4)
+        const duree = calculerDureeMinutes(t);
+        if (duree === null) {
+          dans("js-duree").hidden = true;
+        } else {
+          dans("js-duree").textContent = "⏱ " + formatDuree(duree);
+        }
+
+        dans("js-places").textContent =
+          "👥 " + t.nb_places_restantes + " place(s) restante(s)";
+
+        // Le badge écologique n'apparaît que si la voiture est électrique
+        if (t.est_ecologique) {
+          dans("js-eco").hidden = false;
+        }
+
+        // --- Le prix ---
+        dans("js-prix").textContent = t.prix_par_personne + " ";
+        const unite = document.createElement("span");
+        unite.textContent = "crédits";
+        dans("js-prix").appendChild(unite);
+
+        // --- Le bouton vers la page de détail ---
+        dans("js-detail").href = "detail.html?id=" + t.covoiturage_id;
+
+        return carte;
       }
 
       // ---- Utilitaires ----
@@ -644,6 +715,46 @@
           month: "long",
           year: "numeric",
         });
+      }
+
+      // Transforme "08:00:00" en nombre de minutes depuis minuit (08:00 → 480)
+      function minutesDepuisMinuit(heure) {
+        const morceaux = heure.split(":");
+        return Number(morceaux[0]) * 60 + Number(morceaux[1]);
+      }
+
+      // Durée du trajet en minutes.
+      // US 4 : on la calcule avec l'heure d'arrivée, et pas seulement
+      // avec la colonne duree_minutes qui peut être vide.
+      function calculerDureeMinutes(t) {
+        if (t.heure_depart && t.heure_arrivee) {
+          const depart = minutesDepuisMinuit(t.heure_depart);
+          const arrivee = minutesDepuisMinuit(t.heure_arrivee);
+          let duree = arrivee - depart;
+          // Arrivée "avant" le départ = le trajet passe minuit : on ajoute 24 h.
+          if (duree < 0) duree = duree + 24 * 60;
+          return duree;
+        }
+        // Pas d'heure d'arrivée : on se rabat sur la durée enregistrée en base.
+        if (t.duree_minutes) return t.duree_minutes;
+        // Durée inconnue : on renvoie null, et le filtre laisse passer le trajet
+        // plutôt que de le cacher sans raison.
+        return null;
+      }
+
+      // Transforme 285 minutes en "4 h 45"
+      function formatDuree(minutes) {
+        if (minutes === null) return "";
+        const heures = Math.floor(minutes / 60);
+        const reste = minutes % 60;
+        if (heures === 0) return reste + " min";
+        return heures + " h " + String(reste).padStart(2, "0");
+      }
+
+      // Transforme "08:00:00" (format de la base) en "08:00" (lisible)
+      function formatHeure(heure) {
+        if (!heure) return "--:--";
+        return heure.slice(0, 5);
       }
 
       function majFiltrePrix(val) {

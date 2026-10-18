@@ -1,0 +1,23 @@
+# ===========================================
+# EcoRide — fichiers à NE JAMAIS envoyer sur GitHub
+# ===========================================
+
+# Les secrets (clés API, mots de passe) : ils restent sur mon PC et sur Render
+.env
+.env.local
+*.env
+!.env.example
+
+# Les librairies installées par npm : elles se réinstallent avec "npm install"
+node_modules/
+
+# Fichiers créés automatiquement par macOS
+.DS_Store
+
+# Journaux d'erreurs
+*.log
+npm-debug.log*
+
+# Dossiers des éditeurs de code
+.vscode/
+.idea/

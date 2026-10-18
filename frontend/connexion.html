@@ -344,10 +344,11 @@
             <input
               type="password"
               id="reg-password"
-              placeholder="Min. 8 caractères"
+              placeholder="Ex. : Motdepasse1!"
             />
             <p class="champ-indice">
-              Au moins 8 caractères, une majuscule et un chiffre.
+              Au moins 8 caractères, une minuscule, une majuscule, un
+              chiffre et un caractère spécial (par exemple ! ? @).
             </p>
           </div>
           <div class="champ-groupe">
@@ -371,6 +372,7 @@
       </div>
     </div>
 
+    <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
       // ---- Gestion des onglets ----
@@ -431,7 +433,8 @@
           } else if (data.user.role_id === 2) {
             window.location.href = "employe.html";
           } else {
-            window.location.href = "profil.html";
+            // US 6 : si on arrive ici depuis un trajet, on y retourne.
+            window.location.href = pageDeRetour() || "profil.html";
           }
         } catch (err) {
           afficherMessage(
@@ -462,6 +465,22 @@
           afficherMessage(
             "msg-inscription",
             "Les mots de passe ne correspondent pas.",
+            "erreur"
+          );
+          return;
+        }
+
+        // Même règle que le serveur, pour prévenir tout de suite au lieu
+        // de faire un aller-retour inutile.
+        // ATTENTION : ce n'est QU'UN CONFORT. Le serveur revérifie tout,
+        // car cette ligne peut être contournée depuis le navigateur.
+        const regleMotDePasse =
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+        if (!regleMotDePasse.test(password)) {
+          afficherMessage(
+            "msg-inscription",
+            "Le mot de passe doit contenir au moins 8 caractères, une " +
+              "minuscule, une majuscule, un chiffre et un caractère spécial.",
             "erreur"
           );
           return;
@@ -514,7 +533,28 @@
 
       // ---- Si déjà connecté → rediriger ----
       if (estConnecte()) {
-        window.location.href = "profil.html";
+        window.location.href = pageDeRetour() || "profil.html";
+      }
+
+      // ---- US 6 : la page d'où l'on vient ----
+      // L'adresse ressemble à : connexion.html?retour=detail.html%3Fid%3D12
+      //
+      // SÉCURITÉ : on ne réutilise JAMAIS cette valeur telle quelle.
+      // Sans contrôle, quelqu'un pourrait envoyer un lien
+      // connexion.html?retour=https://site-pirate.com : la personne se
+      // connecterait chez nous puis serait expédiée ailleurs.
+      // Cette faille s'appelle une "redirection ouverte".
+      // On n'accepte donc QUE le nom d'une page de notre site.
+      function pageDeRetour() {
+        const params = new URLSearchParams(window.location.search);
+        const retour = params.get("retour");
+        if (!retour) return null;
+
+        // Format autorisé : "detail.html" ou "detail.html?id=12"
+        const formatAutorise = /^[a-z0-9-]+\.html(\?[a-z0-9=&_-]*)?$/i;
+        if (!formatAutorise.test(retour)) return null;
+
+        return retour;
       }
     </script>
   </body>

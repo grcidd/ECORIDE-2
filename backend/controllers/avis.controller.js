@@ -91,7 +91,7 @@ export const getAvisChauffeur = async (req, res) => {
 
     const { data: avis, error } = await supabase
       .from("avis")
-      .select("note, commentaire, created_at, passager:users(pseudo)")
+      .select("note, commentaire, created_at, passager:users!avis_passager_id_fkey(pseudo)")
       .eq("chauffeur_id", id)
       .eq("statut", "valide")
       .order("created_at", { ascending: false });

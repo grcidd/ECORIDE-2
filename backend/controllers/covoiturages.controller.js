@@ -112,7 +112,7 @@ export const getDetail = async (req, res) => {
     // Avis validés du chauffeur
     const { data: avis } = await supabase
       .from("avis")
-      .select("note, commentaire, created_at, passager:users(pseudo)")
+      .select("note, commentaire, created_at, passager:users!avis_passager_id_fkey(pseudo)")
       .eq("chauffeur_id", trajet.chauffeur_id)
       .eq("statut", "valide")
       .order("created_at", { ascending: false });

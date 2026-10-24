@@ -173,6 +173,7 @@ export const getDetail = async (req, res) => {
 const MESSAGES_RESERVATION = {
   TRAJET_INTROUVABLE: { code: 404, message: "Ce trajet n'existe pas." },
   TRAJET_NON_RESERVABLE: { code: 400, message: "Ce trajet n'est plus réservable." },
+  TRAJET_PASSE: { code: 400, message: "Ce trajet est déjà passé : tu ne peux plus le réserver." },
   PROPRE_TRAJET: { code: 400, message: "Tu ne peux pas réserver ton propre trajet." },
   COMPLET: { code: 400, message: "Plus de places disponibles." },
   DEJA_INSCRIT: { code: 400, message: "Tu participes déjà à ce trajet." },
@@ -184,6 +185,18 @@ export const participer = async (req, res) => {
   try {
     const { id } = req.params;
     const user_id = req.user.user_id; // vient du jeton, jamais du navigateur
+
+    // On refuse un trajet dont la date et l'heure de départ sont passées.
+    const { data: trajet } = await supabase
+      .from("covoiturages")
+      .select("date_depart, heure_depart")
+      .eq("covoiturage_id", Number(id))
+      .single();
+
+    if (trajet && new Date(`${trajet.date_depart}T${trajet.heure_depart}`) < new Date()) {
+      const reponse = MESSAGES_RESERVATION.TRAJET_PASSE;
+      return res.status(reponse.code).json({ message: reponse.message });
+    }
 
     // Un seul appel : la fonction vérifie TOUT puis écrit TOUT, d'un bloc.
     const { data, error } = await supabase.rpc("reserver_covoiturage", {
@@ -427,9 +440,24 @@ export const historique = async (req, res) => {
 
     if (passagerError) throw passagerError;
 
+    // Les avis déjà laissés par ce passager : sert à cacher le bouton
+    // "Laisser un avis" quand il a déjà donné le sien (1 avis par trajet).
+    const { data: sesAvis, error: avisError } = await supabase
+      .from("avis")
+      .select("covoiturage_id")
+      .eq("passager_id", user_id);
+
+    if (avisError) throw avisError;
+
+    const trajetsAvecAvis = new Set((sesAvis || []).map((a) => a.covoiturage_id));
+    const passager = (enTantQuePassager || []).map((p) => ({
+      ...p,
+      avis_donne: trajetsAvecAvis.has(p.covoiturage_id),
+    }));
+
     res.status(200).json({
       chauffeur: enTantQueChauffeur || [],
-      passager: enTantQuePassager || [],
+      passager,
     });
   } catch (error) {
     console.error("Erreur historique :", error);

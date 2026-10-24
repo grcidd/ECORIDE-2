@@ -287,6 +287,8 @@
         </div>
 
         <!-- AVIS -->
+        <div id="message-employe" class="alerte" hidden></div>
+
         <div class="panneau-employe actif" id="panneau-avis">
           <div id="liste-avis">
             <div class="zone-chargement"><div class="loader"></div></div>
@@ -422,6 +424,16 @@
 
       // ---- Valider ou refuser un avis ----
       // action vaut "valider" ou "refuser" : c'est le nom de la route.
+      // Affiche un message vert en haut de la page pendant 4 secondes
+      function afficherMessage(texte) {
+        const zone = document.getElementById("message-employe");
+        zone.textContent = texte; // textContent : pas de HTML injecté
+        zone.className = "alerte alerte-succes";
+        zone.hidden = false;
+        clearTimeout(zone.minuteur);
+        zone.minuteur = setTimeout(() => (zone.hidden = true), 4000);
+      }
+
       async function traiterAvis(id, action) {
         try {
           const rep = await apiProtegee(`/admin/avis/${id}/${action}`, {
@@ -435,6 +447,13 @@
           }
 
           document.getElementById("avis-" + id)?.remove();
+
+          // Message de confirmation pour l'employé
+          afficherMessage(
+            action === "valider"
+              ? "✅ Avis validé : il est maintenant visible sur le profil du chauffeur."
+              : "❌ Avis refusé : il ne sera pas publié."
+          );
 
           const compteur = document.getElementById("compteur-avis");
           compteur.textContent = Math.max(0, parseInt(compteur.textContent) - 1);

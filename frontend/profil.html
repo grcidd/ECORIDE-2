@@ -940,9 +940,17 @@
               ok.textContent = "✅ Trajet confirmé";
               actions.appendChild(ok);
 
-              bouton("⭐ Laisser un avis", "btn-vert", () =>
-                afficherFormAvis(panneau, t.covoiturage_id)
-              );
+              // Un seul avis par trajet : s'il l'a déjà donné, on l'indique
+              if (participation.avis_donne) {
+                const avis = document.createElement("span");
+                avis.className = "statut-badge statut-termine";
+                avis.textContent = "⭐ Avis envoyé";
+                actions.appendChild(avis);
+              } else {
+                bouton("⭐ Laisser un avis", "btn-vert", () =>
+                  afficherFormAvis(panneau, t.covoiturage_id)
+                );
+              }
             } else {
               // Il a signalé un problème : un employé doit trancher (US 12).
               const pb = document.createElement("span");

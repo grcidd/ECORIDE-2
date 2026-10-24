@@ -262,22 +262,59 @@ export const suspendreUtilisateur = async (req, res) => {
 
 export const getStats = async (req, res) => {
   try {
+    // 1) Nombre d'utilisateurs inscrits (on compte sans rapatrier les lignes)
     const { count: totalUsers } = await supabase
       .from("users")
       .select("*", { count: "exact", head: true });
 
-    const { count: totalTrajets } = await supabase
+    // 2) Les trajets non annulés : date, écologique ou non, commission
+    const { data: trajets, error: errT } = await supabase
       .from("covoiturages")
-      .select("*", { count: "exact", head: true });
+      .select("covoiturage_id, date_depart, est_ecologique, credits_plateforme")
+      .neq("statut", "annule");
+    if (errT) throw errT;
 
-    const { count: totalAvis } = await supabase
-      .from("avis")
-      .select("*", { count: "exact", head: true });
+    // 3) Les réservations non annulées : chaque passager rapporte
+    //    credits_plateforme crédits à EcoRide (US 13)
+    const { data: participations, error: errP } = await supabase
+      .from("participations")
+      .select("covoiturage_id")
+      .neq("statut", "annulee");
+    if (errP) throw errP;
+
+    // On range les trajets par id pour retrouver vite leur date et leur commission
+    const trajetParId = {};
+    trajets.forEach((t) => (trajetParId[t.covoiturage_id] = t));
+
+    // Graphique 1 : nombre de covoiturages par jour
+    const trajetsJour = {};
+    trajets.forEach((t) => {
+      trajetsJour[t.date_depart] = (trajetsJour[t.date_depart] || 0) + 1;
+    });
+
+    // Graphique 2 : crédits gagnés par la plateforme par jour
+    const creditsJour = {};
+    let totalCredits = 0;
+    participations.forEach((p) => {
+      const t = trajetParId[p.covoiturage_id];
+      if (!t) return; // trajet annulé : pas de commission
+      creditsJour[t.date_depart] = (creditsJour[t.date_depart] || 0) + t.credits_plateforme;
+      totalCredits += t.credits_plateforme;
+    });
+
+    // On transforme les objets en tableaux triés par date pour Chart.js
+    const trajetsParJour = Object.keys(trajetsJour).sort()
+      .map((date) => ({ date, count: trajetsJour[date] }));
+    const creditsParJour = Object.keys(creditsJour).sort()
+      .map((date) => ({ date, credits: creditsJour[date] }));
 
     res.status(200).json({
       totalUsers: totalUsers || 0,
-      totalTrajets: totalTrajets || 0,
-      totalAvis: totalAvis || 0,
+      totalTrajets: trajets.length,
+      totalEco: trajets.filter((t) => t.est_ecologique).length,
+      totalCredits,
+      trajetsParJour,
+      creditsParJour,
     });
   } catch (error) {
     console.error("Erreur getStats :", error);

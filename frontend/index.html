@@ -253,14 +253,20 @@
         .hero-actions {
           justify-content: center;
         }
-        /* Sur mobile, la carte de recherche passe sous le texte, en pleine largeur */
+        /* Sur mobile, la carte de recherche passe sous le texte, centrée */
         .hero-card {
+          width: 100%;
+          max-width: 440px;
+          margin: 0 auto;
           padding: 24px 20px;
-          text-align: left;
+          text-align: center;
         }
         .hero-card h3 {
           font-size: 1.15rem;
           margin-bottom: 16px;
+        }
+        .hero-card .champ-groupe label {
+          text-align: center;
         }
         /* Le rond décoratif dépasserait de l'écran : on le retire */
         .hero-card::before {

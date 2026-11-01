@@ -242,7 +242,9 @@
       @media (max-width: 900px) {
         .hero {
           grid-template-columns: 1fr;
-          padding: 100px 20px 60px;
+          min-height: auto;
+          gap: 36px;
+          padding: 100px 20px 48px;
           text-align: center;
         }
         .hero-texte {
@@ -251,9 +253,25 @@
         .hero-actions {
           justify-content: center;
         }
+        /* Sur mobile, la carte de recherche passe sous le texte, centrée */
         .hero-card {
+          width: 100%;
+          max-width: 440px;
+          margin: 0 auto;
+          padding: 24px 20px;
+          text-align: center;
+        }
+        .hero-card h3 {
+          font-size: 1.15rem;
+          margin-bottom: 16px;
+        }
+        .hero-card .champ-groupe label {
+          text-align: center;
+        }
+        /* Le rond décoratif dépasserait de l'écran : on le retire */
+        .hero-card::before {
           display: none;
-        } /* on cache la carte desktop sur mobile */
+        }
         .cards-grid {
           grid-template-columns: 1fr;
         }

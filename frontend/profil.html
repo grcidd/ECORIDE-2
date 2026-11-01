@@ -445,7 +445,7 @@
             <a class="sidebar-btn" href="#mes-trajets"
               ><span>🚗</span> Mes trajets</a
             >
-            <a class="sidebar-btn" href="#proposer-trajet"
+            <a class="sidebar-btn reserve-chauffeur" href="#proposer-trajet"
               ><span>➕</span> Proposer un trajet</a
             >
             <a class="sidebar-btn" href="#mon-vehicule"
@@ -491,7 +491,7 @@
             <div class="carte-blanche">
               <h3>Accès rapide</h3>
               <div class="actions-rapides">
-                <a class="btn btn-vert" href="#proposer-trajet"
+                <a class="btn btn-vert reserve-chauffeur" href="#proposer-trajet"
                   >➕ Proposer un trajet</a
                 >
                 <a href="covoiturages.html" class="btn btn-contour"
@@ -612,7 +612,7 @@
             </div>
           </section>
 
-          <section id="proposer-trajet" class="section-profil">
+          <section id="proposer-trajet" class="section-profil reserve-chauffeur">
             <h2 class="contenu-titre">Proposer un trajet</h2>
 
             <div class="carte-blanche">
@@ -1200,6 +1200,15 @@
         chargerHistorique();
       }
 
+      // Un passager seul ne peut pas proposer de trajet (le serveur refuse
+      // aussi). On cache donc tout ce qui y mène : le lien du menu,
+      // le bouton d'accès rapide et le formulaire.
+      function afficherOutilsChauffeur() {
+        document.querySelectorAll(".reserve-chauffeur").forEach((el) => {
+          el.style.display = user.est_chauffeur ? "" : "none";
+        });
+      }
+
       function marquerRoleActuel() {
         document.querySelectorAll(".role-btn").forEach((b) => {
           b.classList.remove("selectionne");
@@ -1273,6 +1282,7 @@
           if (rep.ok) {
             user.est_chauffeur = est_chauffeur;
             user.est_passager = est_passager;
+            afficherOutilsChauffeur();
           }
         } catch {
           afficherAlerte("msg-role", "erreur", "Erreur serveur.");
@@ -1730,6 +1740,7 @@
           document.getElementById("section-prefs-chauffeur").style.display =
             "none";
         }
+        afficherOutilsChauffeur();
 
         document
           .getElementById("btn-deconnexion")

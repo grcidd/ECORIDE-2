@@ -303,6 +303,23 @@
         .barre-recherche {
           padding: 24px 20px;
         }
+        /* Sur mobile, les champs s'empilent et prennent toute la largeur, centrés */
+        .form-recherche {
+          flex-direction: column;
+          align-items: stretch;
+          padding: 20px;
+        }
+        .form-recherche .champ-groupe {
+          min-width: 0;
+          width: 100%;
+        }
+        .form-recherche .champ-groupe label {
+          text-align: center;
+        }
+        .form-recherche .btn {
+          width: 100%;
+          justify-content: center;
+        }
       }
     </style>
   </head>
